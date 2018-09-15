@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.animation as anm
 import numpy as np
-import cv2
+#import cv2
 import sys
 import os
 
@@ -41,7 +41,7 @@ class Visualization(object):
 
         return
 
-
+"""
 
 class View:
     def __init__(self):
@@ -155,14 +155,14 @@ class View:
                 img = cv2.resize(cv2.cvtColor(img, cv2.COLOR_RGB2BGR), size)
 
                 video.write(img)
-                """
+                
                 # display image with opencv or any operation you like
-                cv2.imshow("plot", img)
-                k = cv2.waitKey(int(100*1.0/fps))
-                if k == ord('q'):
-                    show = False
-                    break
-                """
+                #cv2.imshow("plot", img)
+                #k = cv2.waitKey(int(100*1.0/fps))
+                #if k == ord('q'):
+                #    show = False
+                #    break
+                
             video.release()
             print("\nsaved to {0}".format(savepath))
 
@@ -172,14 +172,14 @@ class View:
         ani = anm.FuncAnimation(self.__fig, self.__update3d, fargs=(x, y, z, xrange, yrange, zrange,
                                                          joint_name, line_index_lower, line_index_upper, show_joint_name),
                                 interval=1.0/fps, frames=len(x))  # interval ms
-        """
-        if savepath is not None:
-            print("saving now...")
-            ani.save(savepath)
-            print("saved to {0}".format(savepath))
-            if saveonly:
-                return
-        """
+        
+        #if savepath is not None:
+        #    print("saving now...")
+        #    ani.save(savepath)
+        #    print("saved to {0}".format(savepath))
+        #    if saveonly:
+        #        return
+        
         plt.show()
 
     def __update3d(self, frame, x, y, z, xrange, yrange, zrange, joint_name=None, line_lower=None, line_upper= None, show_joint_name=False):
@@ -212,3 +212,4 @@ class View:
 
     def show2d(self):
         self.__fig = plt.figure()
+"""

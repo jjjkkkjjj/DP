@@ -4,8 +4,10 @@ from scipy.interpolate import CubicSpline as cs
 from scipy.interpolate import interp1d
 from scipy.spatial.distance import cdist
 import sys
-from view import Visualization
+sys.setrecursionlimit(10000)
+from dp.view import Visualization
 import os
+import warnings
 
 
 class DP(Visualization):
@@ -33,7 +35,9 @@ class DP(Visualization):
         if reference.frame_max > input.frame_max and not ignoreWarning:
             print("Warning: reference pattern[t:{0}] has loneger times than input one[t:{1}]".format(reference.frame_max, input.frame_max))
             #exit()
-
+        if ignoreWarning:
+            np.seterr(invalid='ignore')
+            warnings.filterwarnings("ignore")
         self.verbose = verbose
         self.correspondents = {}
         self.totalCosts = {}

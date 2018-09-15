@@ -12,7 +12,7 @@ for i in range(1, 7 + 1):
 for Inp in Input:
     DP_ = DP(Reference, Inp, verbose=False, ignoreWarning=True)
     DP_.calc(resultdir='./result/IMAMURA-normal')
-
+"""
 Input = []
 Reference = None
 for i in range(8, 34 + 1):
@@ -36,6 +36,7 @@ for i in range(35, 36 + 1):
 for Inp in Input:
     DP_ = DP(Reference, Inp, verbose=False, ignoreWarning=True)
     DP_.calc(resultdir='./result/IMAMURA-strong')
+"""
 """
 ref = Data()
 ref.set_from_trc('./trc/IMAMURA08.trc')
