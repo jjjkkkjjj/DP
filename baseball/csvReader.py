@@ -5,7 +5,7 @@ def csvReader(csvfile, dir):
 
     tmplists = []
 
-    with open(dir + csvfile, "rb") as f:
+    with open(dir + csvfile, "r") as f:
         reader = csv.reader(f)
         for row in reader:
             tmplists.append(row)

@@ -47,7 +47,7 @@ class DP(Visualization):
         if jointNames is None:
             jointNames = self.input.joints # corresponds to input
         elif type(jointNames).__name__ != 'list':
-            raise ValueError("argument \'joints\'[type:{0}] must be list or None which means calculation for all joints".format(type(joints).__name__))
+            raise ValueError("argument \'joints\'[type:{0}] must be list or None which means calculation for all joints".format(type(jointNames).__name__))
 
         for joint in jointNames:
             if not (joint in self.reference.joints.keys() and joint in self.input.joints.keys()):
@@ -125,10 +125,25 @@ class DP(Visualization):
                     self.saveresult(joint, savepath=resultdir + "/{0}-R_{1}-I_{2}.png".format(joint, self.reference.name, self.input.name))
 
             except ValueError:
-                if self.verbose:
-                    print("All matching cost have nan")
-                    print("skip...")
+                #if self.verbose:
+                print("Warning:{0}'s all matching cost has nan".format(joint))
+                print("skip...")
                 continue
+
+    def aligned(self, jointNames=None): # input aligned by reference
+        if jointNames is None:
+            jointNames = self.input.joints
+
+        aligned = {}
+
+        for jointName in jointNames:
+            if jointName not in self.correspondents.keys():
+                raise NotImplementedError("There is no result about {0}: this method must call after calc".format(jointName))
+
+            times = self.correspondents[jointName][:, 1]
+            aligned[jointName] = self.input.joints[jointName][times, :]
+
+        return aligned
 
     def showresult(self, jointName):
         if jointName not in self.correspondents.keys():
@@ -142,6 +157,7 @@ class DP(Visualization):
         self.show(x=self.correspondents[jointName][:, 0], y=self.correspondents[jointName][:, 1],
                   xtime=self.reference.frame_max, ytime=self.input.frame_max, title=jointName, savepath=savepath)
 
+# Data.joints[joint] = [time, dim]
 class Data:
     def __init__(self, interpolate='linear', ):
         """
@@ -236,7 +252,7 @@ class Data:
             raise ValueError("x, y, z must have same shape")
 
         if x.shape[jointaxis] != len(jointNames):
-            raise ValueError("data shape[{0}] and jointNames[size:0] must be same".format(x.shape[jointaxis], len(jointNames)))
+            raise ValueError("data shape[{0}] and jointNames[size:{1}] must be same".format(x.shape[jointaxis], len(jointNames)))
 
         self.name = dataname
         if dir is not None:
@@ -272,6 +288,14 @@ class Data:
 
         self.frame_max = self.joints[jointNames[0]].shape[0]
 
+    def show(self):
+        if self.joints is None:
+            raise NotImplementedError("show function must be implemented after setvalue or set_from_trc")
+        vis = Visualization()
+        data = np.array(list(self.joints.values())) # [joint index][time][dim]
+        vis.show3d(x=data[:, :, 0].T, y=data[:, :, 1].T, z=data[:, :, 2].T, jointNames=self.joints)
+
+
 def referenceDetector(Datalists, name, save=True):
     if type(Datalists).__name__ != 'list':
         raise TypeError("Datalists must be list")
@@ -295,7 +319,7 @@ def referenceDetector(Datalists, name, save=True):
 
                 dp = DP(dataRef, dataInp, verbose=False, ignoreWarning=True)
                 dp.calc(showresult=False)
-                Matrix_DPcost[row][col] = np.mean(dp.totalCosts.values())
+                Matrix_DPcost[row][col] = np.mean(list(dp.totalCosts.values()))
 
 
                 del dp
@@ -325,5 +349,5 @@ def referenceReader(name, directory):
         for row in reader:
             if row[0] == 'dir':
                 if row[1] == directory:
-                    return row[7]
+                    return row[5]
     raise ValueError("No such a {0}".format(directory))

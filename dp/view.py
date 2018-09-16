@@ -1,6 +1,11 @@
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.animation as anm
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from PyQt5.QtWidgets import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
 import numpy as np
 #import cv2
 import sys
@@ -41,6 +46,210 @@ class Visualization(object):
 
         return
 
+    def show3d(self, x, y, z, jointNames, saveonly=False, title=None, savepath=None): # x[time, joint]
+        app = QApplication(sys.argv)
+        gui = gui3d(x, y, z, jointNames)
+        if saveonly:
+            gui.saveVideo()
+            return
+        gui.show()
+        sys.exit(app.exec_())
+
+
+class gui3d(QMainWindow):
+    def __init__(self, x, y, z, joints, parent=None):
+        QMainWindow.__init__(self, parent)
+        self.frame = 0
+        self.x = x # [time][joint index]
+        self.y = y
+        self.z = z
+        self.joints = joints
+
+        self.create_menu()
+        self.create_mainframe()
+        self.draw(fix=False)
+
+    def draw(self, fix=False):
+        if fix:
+            azim = self.axes.azim
+            elev = self.axes.elev
+            xlim = list(self.axes.get_xlim())
+            ylim = list(self.axes.get_ylim())
+            zlim = list(self.axes.get_zlim())
+            addlim = np.max([xlim[1] - xlim[0], ylim[1] - ylim[0], zlim[1] - zlim[0]])
+            xlim[1] = xlim[0] + addlim
+            ylim[1] = ylim[0] + addlim
+            zlim[1] = zlim[0] + addlim
+        # clear the axes and redraw the plot anew
+        #
+        self.axes.clear()
+        plt.title('frame number=' + str(self.frame))
+        self.axes.grid(self.grid_cb.isChecked())
+
+        self.axes.set_xlabel('x')
+        self.axes.set_ylabel('y')
+        self.axes.set_zlabel('z')
+
+        if fix:
+            self.axes.set_xlim(xlim)
+            self.axes.set_ylim(ylim)
+            self.axes.set_zlim(zlim)
+            self.axes.view_init(elev=elev, azim=azim)
+
+        self.scatter = [
+            self.axes.scatter3D(self.x[self.frame, i], self.y[self.frame, i], self.z[self.frame, i], ".",
+                                color='blue', picker=5) for i in range(len(self.joints))]
+
+        """
+        if self.trajectory_line is not None:
+            self.axes.lines.extend(self.trajectory_line)
+
+        self.scatter = [
+            self.axes.scatter3D(self.x[self.frame, i], self.y[self.frame, i], self.z[self.frame, i], ".",
+                                color='blue', picker=5) for i in range(len(self.joints))]
+
+        if self.now_select != -1:
+            self.scatter[self.now_select] = self.axes.scatter3D(self.x[self.frame, self.now_select],
+                                                                self.y[self.frame, self.now_select],
+                                                                self.z[self.frame, self.now_select], ".",
+                                                                color='red', picker=5)
+
+        if self.leftdockwidget.check_showbone.isChecked():
+            for bone1, bone2 in zip(self.bone1[self.frame], self.bone2[self.frame]):
+                self.axes.plot([bone1[0], bone2[0]], [bone1[1], bone2[1]], [bone1[2], bone2[2]], "-",
+                               color="black")
+        """
+        self.canvas.draw()
+
+    def create_menu(self):
+        self.filemenu = self.menuBar().addMenu("&File")
+
+        save_action = QAction("Save video", self)
+        save_action.setShortcut("Ctrl+S")
+        save_action.triggered.connect(self.saveVideo)
+        self.filemenu.addAction(save_action)
+
+    def create_mainframe(self):
+        self.main_frame = QWidget()
+
+        # Create the mpl Figure and FigCanvas objects.
+        # 5x4 inches, 100 dots-per-inch
+        #
+        self.dpi = 100
+        self.fig = plt.figure()
+        self.canvas = FigureCanvas(self.fig)
+        self.canvas.setParent(self.main_frame)
+
+        # Since we have only one plot, we can use add_axes
+        # instead of add_subplot, but then the subplot
+        # configuration tool in the navigation toolbar wouldn't
+        # work.
+        #
+        self.axes = Axes3D(self.fig)
+
+        # Bind the 'pick' event for clicking on one of the bars
+        #
+        #self.canvas.mpl_connect('pick_event', self.onclick)
+        #self.canvas.setFocusPolicy(Qt.ClickFocus)
+        #self.canvas.setFocus()
+        #self.canvas.mpl_connect('key_press_event', self.onkey)
+        #self.canvas.mpl_connect('key_release_event', self.onrelease)
+
+        # Create the navigation toolbar, tied to the canvas
+        #
+        self.mpl_toolbar = NavigationToolbar(self.canvas, self.main_frame)
+
+        # Other GUI controls
+        #
+        self.grid_cb = QCheckBox("Show &Grid")
+        self.grid_cb.setChecked(True)
+        self.grid_cb.stateChanged.connect(lambda: self.draw(fix=True))
+
+        # x range selector
+        self.groupxrange = QGroupBox("x")
+        hboxX = QHBoxLayout()
+        self.buttonXminus = QPushButton("<")
+        self.buttonXminus.clicked.connect(lambda: self.rangeChanger("x", False))
+        hboxX.addWidget(self.buttonXminus)
+
+        self.buttonXplus = QPushButton(">")
+        self.buttonXplus.clicked.connect(lambda: self.rangeChanger("x", True))
+        hboxX.addWidget(self.buttonXplus)
+        self.groupxrange.setLayout(hboxX)
+
+        # y range selector
+        self.groupyrange = QGroupBox("y")
+        hboxY = QHBoxLayout()
+        self.buttonYminus = QPushButton("<")
+        self.buttonYminus.clicked.connect(lambda: self.rangeChanger("y", False))
+        hboxY.addWidget(self.buttonYminus)
+
+        self.buttonYplus = QPushButton(">")
+        self.buttonYplus.clicked.connect(lambda: self.rangeChanger("y", True))
+        hboxY.addWidget(self.buttonYplus)
+        self.groupyrange.setLayout(hboxY)
+
+        # z range changer
+        self.groupzrange = QGroupBox("z")
+        hboxZ = QHBoxLayout()
+        self.buttonZminus = QPushButton("<")
+        self.buttonZminus.clicked.connect(lambda: self.rangeChanger("z", False))
+        hboxZ.addWidget(self.buttonZminus)
+
+        self.buttonZplus = QPushButton(">")
+        self.buttonZplus.clicked.connect(lambda: self.rangeChanger("z", True))
+        hboxZ.addWidget(self.buttonZplus)
+        self.groupzrange.setLayout(hboxZ)
+
+        #self.groupxrange.setEnabled(False)
+        #self.groupyrange.setEnabled(False)
+        #self.groupzrange.setEnabled(False)
+        #
+        # Layout with box sizers
+        #
+        hbox = QHBoxLayout()
+
+        for w in [self.grid_cb, self.groupxrange, self.groupyrange, self.groupzrange]:
+            hbox.addWidget(w)
+            hbox.setAlignment(w, Qt.AlignVCenter)
+
+        #
+        # slider
+        #
+        self.slider = QSlider(Qt.Horizontal)
+        #self.slider.setEnabled(False)
+        self.slider.valueChanged.connect(self.sliderValueChanged)
+        self.slider.setMaximum(self.x.shape[0] - 1)
+        self.slider.setMinimum(0)
+
+        vbox = QVBoxLayout()
+        vbox.addWidget(self.slider)
+        vbox.addWidget(self.canvas)
+        vbox.addWidget(self.mpl_toolbar)
+        vbox.addLayout(hbox)
+
+        self.main_frame.setLayout(vbox)
+        self.setCentralWidget(self.main_frame)
+
+    def rangeChanger(self, coordinates, plus):
+        ticks = eval("self.axes.get_{0}ticks()".format(coordinates))
+
+        if plus:
+            width = ticks[1] - ticks[0]
+        else:
+            width = ticks[0] - ticks[1]
+
+        lim = eval("self.axes.get_{0}lim()".format(coordinates))
+        eval("self.axes.set_{0}lim(lim + width)".format(coordinates))
+
+        self.draw(fix=True)
+
+    def sliderValueChanged(self):
+        self.frame = self.slider.value()
+        self.draw(fix=True)
+
+    def saveVideo(self):
+        pass
 """
 
 class View:
