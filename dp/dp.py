@@ -205,6 +205,16 @@ class Data:
             self.name = self.trcpath.split('/')[-1]
 
             if lines == 'volleyball':
+                """
+                self.Points = ["head", "R_ear", "L_ear", "sternum", "C7", "R_rib", "L_rib", "R_ASIS", "L_ASIS",
+                               "R_PSIS",
+                               "L_PSIS",
+                               "R_frontshoulder", "R_backshoulder", "R_in_elbow", "R_out_elbow", "R_in_wrist",
+                               "R_out_wrist",
+                               "R_hand",
+                               "L_frontshoulder", "L_backshoulder", "L_in_elbow", "L_out_elbow", "D_UA?", "L_in_wrist",
+                               "L_out_wrist",
+                               "L_hand"]
                 self.lines = [[0, 1], [0, 2], [1, 2], [7, 8], [8, 10], [9, 10], [7, 9], [7, 11], [8, 18], [9, 12],
                               [10, 19], [11, 12],
                               [12, 19], [18, 19], [18, 11], [11, 13],
@@ -212,6 +222,24 @@ class Data:
                               [20, 21],
                               [20, 23], [21, 24], [23, 24], [23, 25], [24, 25],
                               [3, 5], [3, 6], [5, 6]]
+                """
+                Lines = [['head', 'R_ear'], ['head', 'L_ear'], ['R_ear', 'L_ear'],
+                              ['R_ASIS', 'L_ASIS'], ['L_ASIS', 'L_PSIS'], ['R_PSIS', 'L_PSIS'], ['R_ASIS', 'R_PSIS'],
+                              ['R_ASIS', 'R_frontshoulder'], ['L_ASIS', 'L_frontshoulder'], ['R_PSIS', 'R_backshoulder'], ['L_PSIS', 'L_backshoulder'],
+                              ['R_frontshoulder', 'R_backshoulder'], ['R_backshoulder', 'L_backshoulder'],
+                              ['L_frontshoulder', 'L_backshoulder'], ['L_frontshoulder', 'R_frontshoulder'],
+                              ['R_frontshoulder', 'R_in_elbow'], ['R_backshoulder', 'R_out_elbow'],
+                              ['R_in_elbow', 'R_out_elbow'], ['R_in_elbow', 'R_in_wrist'], ['R_out_elbow', 'R_out_wrist'], ['R_in_wrist', 'R_out_wrist'],
+                              ['R_in_wrist', 'R_hand'], ['R_out_wrist', 'R_hand'],
+                              ['L_frontshoulder', 'L_in_elbow'], ['L_backshoulder', 'L_out_elbow'], ['L_in_elbow', 'L_out_elbow'],
+                              ['L_in_elbow', 'L_in_wrist'], ['L_out_elbow', 'L_out_wrist'], ['L_in_wrist', 'L_out_wrist'], ['L_in_wrist', 'L_hand'],
+                              ['L_out_wrist', 'L_hand'], ['sternum', 'R_rib'], ['sternum', 'L_rib'], ['R_rib', 'L_rib']]
+
+                jointNames = list(self.joints.keys())
+                self.lines = []
+                for line in Lines:
+                    self.lines.append([jointNames.index(line[0]), jointNames.index(line[1])])
+
             else:
                 print("Warning: {0} is unknown lines".format(lines))
 
