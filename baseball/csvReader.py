@@ -38,6 +38,6 @@ def csvReader(csvfile, dir):
         elif tmplists[5][index] == 'Rotation':
             index += 4
 
-    data.setvalues(csvfile, np.array(X), np.array(Y), np.array(Z), jointNames, dir=dir)
+    data.setvalues(csvfile, np.array(X), np.array(Y), np.array(Z), jointNames, dir=dir, lines='baseball')
 
     return data

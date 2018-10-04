@@ -5,7 +5,7 @@ from scipy.interpolate import interp1d
 from scipy.spatial.distance import cdist
 import sys
 sys.setrecursionlimit(10000)
-from dp.view import Visualization
+from view import Visualization
 import os
 import warnings
 
@@ -159,7 +159,7 @@ class DP(Visualization):
 
 # Data.joints[joint] = [time, dim]
 class Data:
-    def __init__(self, interpolate='linear', ):
+    def __init__(self, interpolate='linear'):
         """
                 @param joints : has values including a missing value, dictionary
                                 joints[joint name][time,dim]
@@ -175,10 +175,10 @@ class Data:
         self.dir = None
         self.frame_max = None
         self.interpolate = interpolate
-
+        self.lines = None
         pass
 
-    def set_from_trc(self, path):
+    def set_from_trc(self, path, lines='volleyball'):
         with open(path, 'r') as f:
             reader = csv.reader(f, delimiter='\t')
             next(reader)
@@ -203,6 +203,17 @@ class Data:
             self.trcpath = path
             self.dir = os.path.dirname(self.trcpath)
             self.name = self.trcpath.split('/')[-1]
+
+            if lines == 'volleyball':
+                self.lines = [[0, 1], [0, 2], [1, 2], [7, 8], [8, 10], [9, 10], [7, 9], [7, 11], [8, 18], [9, 12],
+                              [10, 19], [11, 12],
+                              [12, 19], [18, 19], [18, 11], [11, 13],
+                              [12, 14], [13, 14], [13, 15], [14, 16], [15, 16], [15, 17], [16, 17], [18, 20], [19, 21],
+                              [20, 21],
+                              [20, 23], [21, 24], [23, 24], [23, 25], [24, 25],
+                              [3, 5], [3, 6], [5, 6]]
+            else:
+                print("Warning: {0} is unknown lines".format(lines))
 
     def check(self):
         pass
@@ -241,7 +252,7 @@ class Data:
         else:
             raise ValueError("{0} is not defined as interpolation method".format(self.interpolate))
 
-    def setvalues(self, dataname, x, y, z, jointNames, jointaxis=0, dir=None):
+    def setvalues(self, dataname, x, y, z, jointNames, jointaxis=0, dir=None, lines='baseball'):
         if type(x).__name__ != 'ndarray' or type(y).__name__ != 'ndarray' or type(z).__name__ != 'ndarray':
             raise TypeError("x, y, z must be ndarray")
 
@@ -253,6 +264,7 @@ class Data:
 
         if x.shape[jointaxis] != len(jointNames):
             raise ValueError("data shape[{0}] and jointNames[size:{1}] must be same".format(x.shape[jointaxis], len(jointNames)))
+
 
         self.name = dataname
         if dir is not None:
@@ -288,13 +300,58 @@ class Data:
 
         self.frame_max = self.joints[jointNames[0]].shape[0]
 
-    def show(self):
+        if lines == 'baseball':
+            lines = [['LTOE', 'LANK'], ['LTIB', 'LANK'], ['LASI', 'LPSI'],  # around ankle
+                     ['RTOE', 'RANK'], ['RTIB', 'RANK'], ['RASI', 'RPSI'],  # "
+                     ['LASI', 'RASI'], ['LPSI', 'RPSI'], ['LHEE', 'LANK'], ['RHEE', 'RANK'], ['LHEE', 'LTOE'],
+                     ['RHEE', 'RTOE'],  # around hip
+                     ['LHEE', 'LTIB'], ['RHEE', 'RTIB'],  # connect ankle to knee
+                     ['LKNE', 'LTIB'], ['LKNE', 'LTHI'], ['LASI', 'LTHI'], ['LPSI', 'LTHI'],  # connect knee to hip
+                     ['RKNE', 'RTIB'], ['RKNE', 'RTHI'], ['RASI', 'RTHI'], ['RPSI', 'RTHI'],  # "
+                     ['LPSI', 'T10'], ['RPSI', 'T10'], ['LASI', 'STRN'], ['RASI', 'STRN'],  # conncet lower and upper
+                     # upper
+                     ['LFHD', 'LBHD'], ['RFHD', 'RBHD'], ['LFHD', 'RFHD'], ['LBHD', 'RBHD'],  # around head
+                     ['LBHD', 'C7'], ['RBHD', 'C7'], ['C7', 'CLAV'], ['CLAV', 'LSHO'], ['CLAV', 'RSHO'],
+                     # connect head to shoulder
+                     ['LSHO', 'LBAK'], ['RSHO', 'RBAK'], ['RBAK', 'LBAK'],  # around shoulder
+                     ['LWRA', 'LFIN'], ['LWRA', 'LFIN'], ['LWRA', 'LWRB'], ['LWRA', 'LFRM'], ['LWRB', 'LFRM'],
+                     # around wrist
+                     ['RWRA', 'RFIN'], ['RWRA', 'RFIN'], ['RWRA', 'RWRB'], ['RWRA', 'RFRM'], ['RWRB', 'RFRM'],  # "
+                     ['LELB', 'LRFM'], ['LELB', 'LUPA'], ['LELB', 'LFIN'], ['LUPA', 'LSHO'],
+                     # connect elbow to wrist, connect elbow to shoulder
+                     ['RELB', 'RRFM'], ['RELB', 'RUPA'], ['RELB', 'RFIN'], ['RUPA', 'RSHO'],  # "
+                     ['LSHO', 'STRN'], ['RSHO', 'STRN'], ['LBAK', 'T10'], ['RBAK', 'T10'],
+                     # connect shoulder to torso
+                     ]
+            # extract initial part of joint name 'skelton 04:'hip
+            jointNames = list(self.joints.keys())
+            init_string = jointNames[0]
+            init_string = init_string[:init_string.index(':') + 1]
+            self.lines = []
+
+            for line in lines:
+                try:
+                    self.lines.append(
+                        [jointNames.index(init_string + line[0]), jointNames.index(init_string + line[1])])
+                except:
+                    continue
+
+        else:
+            print("Warning: {0} is unknown lines".format(lines))
+
+    def show(self, fps=240):
         if self.joints is None:
             raise NotImplementedError("show function must be implemented after setvalue or set_from_trc")
         vis = Visualization()
         data = np.array(list(self.joints.values())) # [joint index][time][dim]
-        vis.show3d(x=data[:, :, 0].T, y=data[:, :, 1].T, z=data[:, :, 2].T, jointNames=self.joints)
+        vis.show3d(x=data[:, :, 0].T, y=data[:, :, 1].T, z=data[:, :, 2].T, jointNames=self.joints, lines=self.lines, fps=fps)
 
+    def save(self, path, fps=240, saveonly=True):
+        if self.joints is None:
+            raise NotImplementedError("save function must be implemented after setvalue or set_from_trc")
+        vis = Visualization()
+        data = np.array(list(self.joints.values()))  # [joint index][time][dim]
+        vis.show3d(x=data[:, :, 0].T, y=data[:, :, 1].T, z=data[:, :, 2].T, jointNames=self.joints, saveonly=saveonly, savepath=path, lines=self.lines, fps=fps)
 
 def referenceDetector(Datalists, name, save=True):
     if type(Datalists).__name__ != 'list':

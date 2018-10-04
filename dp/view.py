@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import numpy as np
-#import cv2
+import cv2
 import sys
 import os
 
@@ -46,24 +46,28 @@ class Visualization(object):
 
         return
 
-    def show3d(self, x, y, z, jointNames, saveonly=False, title=None, savepath=None): # x[time, joint]
+    def show3d(self, x, y, z, jointNames, saveonly=False, title=None, savepath=None, fps=240, lines=None): # x[time, joint]
         app = QApplication(sys.argv)
-        gui = gui3d(x, y, z, jointNames)
+        gui = gui3d(x, y, z, jointNames, fps, lines)
         if saveonly:
-            gui.saveVideo()
+            if savepath is None:
+                raise ValueError("when you call save, you must set savepath")
+            gui.saveVideo(savepath)
             return
         gui.show()
         sys.exit(app.exec_())
 
 
 class gui3d(QMainWindow):
-    def __init__(self, x, y, z, joints, parent=None):
+    def __init__(self, x, y, z, joints, fps=240, lines=None, parent=None):
         QMainWindow.__init__(self, parent)
         self.frame = 0
         self.x = x # [time][joint index]
         self.y = y
         self.z = z
         self.joints = joints
+        self.lines = lines
+        self.fps = fps
 
         self.create_menu()
         self.create_mainframe()
@@ -100,6 +104,11 @@ class gui3d(QMainWindow):
             self.axes.scatter3D(self.x[self.frame, i], self.y[self.frame, i], self.z[self.frame, i], ".",
                                 color='blue', picker=5) for i in range(len(self.joints))]
 
+        if self.lines is not None:
+            for line in self.lines:
+                self.axes.plot([self.x[self.frame, line[0]], self.x[self.frame, line[1]]],
+                               [self.y[self.frame, line[0]], self.y[self.frame, line[1]]],
+                               [self.z[self.frame, line[0]], self.z[self.frame, line[1]]], "-", color='black')
         """
         if self.trajectory_line is not None:
             self.axes.lines.extend(self.trajectory_line)
@@ -126,7 +135,7 @@ class gui3d(QMainWindow):
 
         save_action = QAction("Save video", self)
         save_action.setShortcut("Ctrl+S")
-        save_action.triggered.connect(self.saveVideo)
+        save_action.triggered.connect(self.save)
         self.filemenu.addAction(save_action)
 
     def create_mainframe(self):
@@ -248,8 +257,88 @@ class gui3d(QMainWindow):
         self.frame = self.slider.value()
         self.draw(fix=True)
 
-    def saveVideo(self):
-        pass
+    def save(self):
+        filters = "MP4 files(*.MP4)"
+        # selected_filter = "CSV files(*.csv)"
+        savepath, extension = QFileDialog.getSaveFileNameAndFilter(self, 'Save file', '', filters)
+
+        savepath = str(savepath).encode()
+        extension = str(extension).encode()
+        # print(extension)
+        if savepath != "":
+            savepath += '.MP4'
+
+            self.saveVideo(savepath)
+
+            QMessageBox.information(self, "Saved", "Saved to {0}".format(savepath))
+
+
+    def saveVideo(self, savepath):
+        size = (600, 400)
+        fourcc = cv2.VideoWriter_fourcc(*'MPEG')
+        video = cv2.VideoWriter(savepath, fourcc, self.fps, size)
+
+        azim = self.axes.azim
+        elev = self.axes.elev
+        xlim = list(self.axes.get_xlim())
+        ylim = list(self.axes.get_ylim())
+        zlim = list(self.axes.get_zlim())
+        addlim = np.max([xlim[1] - xlim[0], ylim[1] - ylim[0], zlim[1] - zlim[0]])
+        xlim[1] = xlim[0] + addlim
+        ylim[1] = ylim[0] + addlim
+        zlim[1] = zlim[0] + addlim
+
+        self.axes.set_xlim(xlim)
+        self.axes.set_ylim(ylim)
+        self.axes.set_zlim(zlim)
+        self.axes.view_init(elev=elev, azim=azim)
+
+        for frame in range(self.x.shape[0]):
+            percent = int((frame + 1.0) * 100 / self.x.shape[0])
+            sys.stdout.write(
+                '\r|{0}| {1}% finished'.format('#' * int(percent * 0.2) + '-' * (20 - int(percent * 0.2)), percent))
+            sys.stdout.flush()
+            self.__update3d(frame, xlim, ylim, zlim)
+
+            # convert canvas to image
+            self.axes.figure.canvas.draw()
+            img = np.fromstring(self.axes.figure.canvas.tostring_rgb(), dtype=np.uint8,
+                                sep='')
+            img = img.reshape(self.axes.figure.canvas.get_width_height()[::-1] + (3,))
+
+            # img is rgb, convert to opencv's default bgr
+            img = cv2.resize(cv2.cvtColor(img, cv2.COLOR_RGB2BGR), size)
+
+            video.write(img)
+
+            # display image with opencv or any operation you like
+            # cv2.imshow("plot", img)
+            # k = cv2.waitKey(int(100*1.0/fps))
+            # if k == ord('q'):
+            #    show = False
+            #    break
+
+        video.release()
+        print("\nsaved to {0}".format(savepath))
+
+    def __update3d(self, frame, xrange, yrange, zrange):
+        if frame != 0:
+            self.axes.cla()
+
+            self.axes.set_xlim(xrange)
+            self.axes.set_ylim(yrange)
+            self.axes.set_zlim(zrange)
+
+        self.axes.scatter3D(self.x[frame], self.y[frame], self.z[frame], ".")
+
+        if self.lines is not None:
+            for line in self.lines:
+                self.axes.plot([self.x[frame, line[0]], self.x[frame, line[1]]],
+                               [self.y[frame, line[0]], self.y[frame, line[1]]],
+                               [self.z[frame, line[0]], self.z[frame, line[1]]], "-", color='black')
+
+        plt.title('frame:{0}'.format(frame))
+
 """
 
 class View:

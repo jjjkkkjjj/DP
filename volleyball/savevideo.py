@@ -1,11 +1,22 @@
-from viewresult import ViewOnly as vo
-import os
+from dp.dp import DP, Data, referenceDetector
 
-dirpath = '/home/junkado/Desktop/Hisamitsu/3d-data/'
-files = os.listdir(dirpath + 'Motioncsv/')
+Datalists = []
+for i in range(1, 7 + 1):
+    data = Data()
+    data.set_from_trc('./trc/IMAMURA{0:02d}.trc'.format(i), lines='volleyball')
+    Datalists.append(data)
+referenceDetector(Datalists, 'IMAMURA-normal.csv')
 
-for file in files:
-    if file.find('.CSV') == -1:
-        continue
-    view = vo(dirpath + 'Motioncsv/' + file, dim=3, remove_rows=slice(0,6), remove_cols=slice(0,2))
-    view.view(dirpath + 'savedata/' + file.replace('.CSV', '.MP4'), saveonly=True)
+Datalists = []
+for i in range(8, 34 + 1):
+    data = Data()
+    data.set_from_trc('./trc/IMAMURA{0:02d}.trc'.format(i), lines='volleyball')
+    Datalists.append(data)
+referenceDetector(Datalists, 'IMAMURA-strong.csv')
+
+Datalists = []
+for i in range(35, 36 + 1):
+    data = Data()
+    data.set_from_trc('./trc/IMAMURA{0:02d}.trc'.format(i), lines='volleyball')
+    Datalists.append(data)
+referenceDetector(Datalists, 'IMAMURA-short.csv')
