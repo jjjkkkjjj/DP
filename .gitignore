@@ -217,8 +217,10 @@ pip-selfcheck.json
 
 /volleyball/result
 /volleyball/trc
+/volleyball/__video
 
 /baseball/dp
 /volleyball/dp
+
 
 .idea
