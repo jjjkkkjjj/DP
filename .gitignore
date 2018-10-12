@@ -214,10 +214,12 @@ pip-selfcheck.json
 /baseball/__optimal_reference
 /baseball/result
 /baseball/__video
+/baseball/__oldfiles
 
 /volleyball/result
 /volleyball/trc
 /volleyball/__video
+/volleyball/__oldfiles
 
 /baseball/dp
 /volleyball/dp
