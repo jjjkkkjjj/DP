@@ -5,8 +5,8 @@ from scipy.interpolate import interp1d
 from scipy.spatial.distance import cdist
 import sys
 sys.setrecursionlimit(10000)
-from view import Visualization
 import os
+from dp.view import Visualization
 import warnings
 
 

@@ -1,3 +1,7 @@
+import platform
+if platform.system() == 'Darwin':
+    import matplotlib
+    matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.animation as anm
@@ -304,6 +308,7 @@ class gui3d(QMainWindow):
             self.axes.figure.canvas.draw()
             img = np.fromstring(self.axes.figure.canvas.tostring_rgb(), dtype=np.uint8,
                                 sep='')
+
             img = img.reshape(self.axes.figure.canvas.get_width_height()[::-1] + (3,))
 
             # img is rgb, convert to opencv's default bgr
