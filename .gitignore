@@ -222,5 +222,8 @@ pip-selfcheck.json
 /baseball/dp
 /volleyball/dp
 
-
+# pycharm
 .idea
+
+# mac
+*.DS_Store
