@@ -306,6 +306,7 @@ class gui3d(QMainWindow):
 
             # convert canvas to image
             self.axes.figure.canvas.draw()
+
             img = np.fromstring(self.axes.figure.canvas.tostring_rgb(), dtype=np.uint8,
                                 sep='')
 
