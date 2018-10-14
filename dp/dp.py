@@ -43,7 +43,7 @@ class DP(Visualization):
         self.totalCosts = {}
 
 
-    def calc(self, jointNames=None, showresult=False, resultdir=""):
+    def calc(self, jointNames=None, showresult=False, resultdir="", myLocalCosts=None):
         if jointNames is None:
             jointNames = self.input.joints # corresponds to input
         elif type(jointNames).__name__ != 'list':
@@ -61,7 +61,12 @@ class DP(Visualization):
             refData = self.reference.joints[joint]
             inpData = self.input.joints[joint]
 
-            localCosts = cdist(refData, inpData, 'euclidean')
+            if myLocalCosts is not None:
+                localCosts = cdist(refData, inpData, 'euclidean')
+            else:
+                if type(myLocalCosts).__name__ != 'dict':
+                    raise ValueError("myLocalCosts must be dict")
+                localCosts = myLocalCosts[joint]
 
             matchingCosts = np.zeros(localCosts.shape)
             matchingCosts[0, :] = localCosts[0, :]
@@ -129,6 +134,31 @@ class DP(Visualization):
                 print("Warning:{0}'s all matching cost has nan".format(joint))
                 print("skip...")
                 continue
+
+    def calc_corrcoef(self, corrcoef, showresult=False, resultdir=""):
+        jointNames = corrcoef['jointNames']
+        Neighbors = corrcoef['neighbor']
+        Corrcoefs = corrcoef['corrcoef']
+        IgnoredJoints = corrcoef['ignored']
+
+        # unique jointnames between ref and inp
+        #if self.reference.joints.keys() != self.input.joints.keys():
+        #    raise ValueError("The joints of reference and input must be same")
+        #if self.reference.lines != self.input.lines:
+        #    raise ValueError("The lines of reference and input must be same")
+
+
+        myLocalCosts = {}
+        LocalCosts = [cdist(self.reference.joints[joint], self.input.joints[joint], 'euclidean') for joint in jointNames]
+        # print(type(LocalCosts[index])) ndarray
+        # np.array(LocalCosts)[neighbors].transpose(1, 2, 0) is converting (refT,inpT,Cnum) into (Cnum,refT,inpT) for inner product to corrcoef
+        for index, joint in enumerate(jointNames):
+            if joint in IgnoredJoints:
+                continue
+            myLocalCosts[joint] = LocalCosts[index] + np.inner(Corrcoefs[joint], np.array(LocalCosts)[Neighbors[joint]].transpose(1, 2, 0)) \
+                                                      / (1 + np.sum(Corrcoefs[joint]))
+
+        self.calc(jointNames=jointNames, showresult=showresult, resultdir=resultdir, myLocalCosts=myLocalCosts)
 
     def aligned(self, jointNames=None): # input aligned by reference
         if jointNames is None:
