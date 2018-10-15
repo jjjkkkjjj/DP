@@ -18,7 +18,7 @@ def main():
 
         DP_ = DP(refData, inpData, verbose=False, ignoreWarning=True)
         DP_.calc_corrcoef(corrcoef, showresult=False, resultdir='./result/IMAMURA-normal-corrcoef-ver/')
-
+        exit()
 def writecorrcoef():
     Datalists = []
     for i in range(1, 7 + 1):

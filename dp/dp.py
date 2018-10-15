@@ -61,7 +61,7 @@ class DP(Visualization):
             refData = self.reference.joints[joint]
             inpData = self.input.joints[joint]
 
-            if myLocalCosts is not None:
+            if myLocalCosts is None:
                 localCosts = cdist(refData, inpData, 'euclidean')
             else:
                 if type(myLocalCosts).__name__ != 'dict':
@@ -154,9 +154,12 @@ class DP(Visualization):
         # np.array(LocalCosts)[neighbors].transpose(1, 2, 0) is converting (refT,inpT,Cnum) into (Cnum,refT,inpT) for inner product to corrcoef
         for index, joint in enumerate(jointNames):
             if joint in IgnoredJoints:
+                myLocalCosts[joint] = LocalCosts[index]
                 continue
             myLocalCosts[joint] = LocalCosts[index] + np.inner(Corrcoefs[joint], np.array(LocalCosts)[Neighbors[joint]].transpose(1, 2, 0)) \
                                                       / (1 + np.sum(Corrcoefs[joint]))
+
+            #myLocalCosts[joint] = LocalCosts[index]
 
         self.calc(jointNames=jointNames, showresult=showresult, resultdir=resultdir, myLocalCosts=myLocalCosts)
 
