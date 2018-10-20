@@ -4,7 +4,7 @@ Input = []
 Reference = None
 for i in range(1, 7 + 1):
     data = Data()
-    data.set_from_trc('./trc/IMAMURA{0:02d}.trc'.format(i), lines='volleyball')
+    data.set_from_trc('./trc/IMAMURA/IMAMURA{0:02d}.trc'.format(i), lines='volleyball')
     if i == 5:
         Reference = data
         continue
