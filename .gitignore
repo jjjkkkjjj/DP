@@ -213,6 +213,7 @@ pip-selfcheck.json
 /baseball/__doc
 /baseball/__optimal_reference
 /baseball/result
+/baseball/reference
 /baseball/__video
 /baseball/__oldfiles
 /baseball/*.csv
