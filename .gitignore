@@ -215,6 +215,7 @@ pip-selfcheck.json
 /baseball/result
 /baseball/__video
 /baseball/__oldfiles
+/baseball/*.csv
 
 /volleyball/result
 /volleyball/trc
