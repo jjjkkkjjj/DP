@@ -210,8 +210,6 @@ pip-selfcheck.json
 # ignore specific directories or files
 /venv
 
-/baseball/__doc
-/baseball/__optimal_reference
 /baseball/result
 /baseball/reference
 /baseball/__video
@@ -219,9 +217,11 @@ pip-selfcheck.json
 /baseball/*.csv
 
 /volleyball/result
+/volleyball/reference
 /volleyball/trc
 /volleyball/__video
 /volleyball/__oldfiles
+/volleyball/*.csv
 
 /baseball/dp
 /volleyball/dp
