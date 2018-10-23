@@ -11,7 +11,7 @@ import warnings
 
 
 class DP(Visualization):
-    def __init__(self, reference=None, input=None, verbose=True, ignoreWarning=False):
+    def __init__(self, reference=None, input=None, verbose=True, ignoreWarning=False, verboseNan=True):
         """
                         @param reference, input : type Data
                         @param verbose : boolean
@@ -39,11 +39,12 @@ class DP(Visualization):
             np.seterr(invalid='ignore')
             warnings.filterwarnings("ignore")
         self.verbose = verbose
+        self.verboseNan = verboseNan
         self.correspondents = {}
         self.totalCosts = {}
 
 
-    def calc(self, jointNames=None, showresult=False, resultdir="", myLocalCosts=None):
+    def calc(self, jointNames=None, showresult=False, resultdir="", myLocalCosts=None, correspondLine=True):
         if jointNames is None:
             jointNames = self.input.joints # corresponds to input
         elif type(jointNames).__name__ != 'list':
@@ -125,17 +126,19 @@ class DP(Visualization):
                     sys.stdout.write("\r{0} is calculating...finished\n".format(joint))
                     sys.stdout.flush()
                 if showresult:
-                    self.showresult(joint)
+                    self.showresult(joint, correspondLine)
                 if resultdir != "":
-                    self.saveresult(joint, savepath=resultdir + "/{0}-R_{1}-I_{2}.png".format(joint, self.reference.name, self.input.name))
+                    self.saveresult(joint, savepath=resultdir + "/{0}-R_{1}-I_{2}.png".format(joint, self.reference.name, self.input.name),
+                                    correspondLine=correspondLine)
 
             except ValueError:
                 #if self.verbose:
-                print("Warning:{0}'s all matching cost has nan".format(joint))
-                print("skip...")
+                if self.verboseNan:
+                    print("Warning:{0}'s all matching cost has nan".format(joint))
+                    print("skip...")
                 continue
 
-    def calc_corrcoef(self, corrcoef, showresult=False, resultdir=""):
+    def calc_corrcoef(self, corrcoef, showresult=False, resultdir="", correspondLine=True):
         jointNames = corrcoef['jointNames']
         Neighbors = corrcoef['neighbor']
         Corrcoefs = corrcoef['corrcoef']
@@ -161,7 +164,7 @@ class DP(Visualization):
 
             #myLocalCosts[joint] = LocalCosts[index]
 
-        self.calc(jointNames=jointNames, showresult=showresult, resultdir=resultdir, myLocalCosts=myLocalCosts)
+        self.calc(jointNames=jointNames, showresult=showresult, resultdir=resultdir, myLocalCosts=myLocalCosts, correspondLine=correspondLine)
 
     def aligned(self, jointNames=None): # input aligned by reference
         if jointNames is None:
@@ -178,17 +181,23 @@ class DP(Visualization):
 
         return aligned
 
-    def showresult(self, jointName):
+    def showresult(self, jointName, correspondLine):
         if jointName not in self.correspondents.keys():
             raise NotImplementedError("There is no result about {0}: this method must call after calc".format(jointName))
-        self.show(x=self.correspondents[jointName][:, 0], y=self.correspondents[jointName][:, 1],
-                  xtime=self.reference.frame_max, ytime=self.input.frame_max, title=jointName)
+        x = {jointName: self.correspondents[jointName][:, 0]}
+        y = {jointName: self.correspondents[jointName][:, 1]}
 
-    def saveresult(self, jointName, savepath):
+        self.show(x=x, y=y, xtime=self.reference.frame_max, ytime=self.input.frame_max,
+                  title='Matching Path', legend=True, correspondLine=correspondLine)
+
+    def saveresult(self, jointName, savepath, correspondLine):
         if jointName not in self.correspondents.keys():
             raise NotImplementedError("There is no result about {0}: this method must call after calc".format(jointName))
-        self.show(x=self.correspondents[jointName][:, 0], y=self.correspondents[jointName][:, 1],
-                  xtime=self.reference.frame_max, ytime=self.input.frame_max, title=jointName, savepath=savepath)
+        x = {jointName: self.correspondents[jointName][:, 0]}
+        y = {jointName: self.correspondents[jointName][:, 1]}
+
+        self.show(x=x, y=y, xtime=self.reference.frame_max, ytime=self.input.frame_max,
+                  title='Matching Path', legend=True, savepath=savepath, correspondLine=correspondLine)
 
 # Data.joints[joint] = [time, dim]
 class Data:
@@ -414,7 +423,7 @@ class Data:
         data = np.array(list(self.joints.values()))  # [joint index][time][dim]
         vis.show3d(x=data[:, :, 0].T, y=data[:, :, 1].T, z=data[:, :, 2].T, jointNames=self.joints, saveonly=saveonly, savepath=path, lines=self.lines, fps=fps)
 
-def referenceDetector(Datalists, name, save=True):
+def referenceDetector(Datalists, name, save=True, superDir='/', verbose=False, verboseNan=False):
     if type(Datalists).__name__ != 'list':
         raise TypeError("Datalists must be list")
     if len(Datalists) == 0:
@@ -435,7 +444,7 @@ def referenceDetector(Datalists, name, save=True):
                 if row == col:
                     continue
 
-                dp = DP(dataRef, dataInp, verbose=False, ignoreWarning=True)
+                dp = DP(dataRef, dataInp, verbose=verbose, ignoreWarning=True, verboseNan=verboseNan)
                 dp.calc(showresult=False)
                 Matrix_DPcost[row][col] = np.mean(list(dp.totalCosts.values()))
 
@@ -449,7 +458,11 @@ def referenceDetector(Datalists, name, save=True):
         print("reference is \"{0}\"".format(Datalists[centroidIndex].name))
 
         if save:
-            with open('./reference/{0}'.format(name), 'a') as f_ref:
+            savepath = os.path.join('./reference/', superDir)
+            if not os.path.exists(savepath):
+                os.mkdir(savepath)
+            savepath = os.path.join(savepath, name)
+            with open(savepath, 'a') as f_ref:
                 if Datalists[centroidIndex].dir is None:
                     f_ref.write(
                         'dir,None,the number of files,{0},optimal reference,{1},\n'.format(len(Datalists), Datalists[centroidIndex].name))
@@ -459,10 +472,13 @@ def referenceDetector(Datalists, name, save=True):
                                                                                           len(Datalists),
                                                                                           Datalists[centroidIndex].name))
                 np.savetxt(f_ref, Matrix_DPcost, delimiter=',')
-            print('saved ./reference/{0}'.format(name))
+            print('saved {0}'.format(savepath))
 
-def referenceReader(name, directory):
-    with open('./reference/{0}'.format(name), 'r') as f:
+def referenceReader(name, directory, superDir='/'):
+    referenceCsvPath = os.path.join('./reference/', superDir)
+    if not os.path.exists(referenceCsvPath):
+        raise IsADirectoryError("{0} doesn\'t exist".format(referenceCsvPath))
+    with open(os.path.join(referenceCsvPath, name), 'r') as f:
         reader = csv.reader(f)
         for row in reader:
             if row[0] == 'dir':

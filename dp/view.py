@@ -19,7 +19,15 @@ class Visualization(object):
     def __init__(self):
         pass
 
-    def show(self, x, y, xtime, ytime, title=None, savepath=None):
+    def show(self, x, y, xtime, ytime, title=None, savepath=None, legend=False, correspondLine=False):
+        if type(x).__name__ != 'dict':
+            raise ValueError("x must be \'dict\' instead of {0}".format(type(x).__name__))
+        if type(y).__name__ != 'dict':
+            raise ValueError("y must be \'dict\' instead of {0}".format(type(x).__name__))
+
+        if len(x) != len(y):
+            print("Warning: x's length{0} is not same to y's{1}. You may not be able to get right result...".format(len(x), len(y)))
+
         self.fig = plt.figure()
         plt.xlabel('reference')
         plt.ylabel('input')
@@ -31,12 +39,17 @@ class Visualization(object):
             plt.ylim([0, ytime])
         plt.gca().set_aspect('equal', adjustable='box')
         plt.vlines([xtime], 0, ytime, linestyles='dashed')
-        tmp_x = np.linspace(0, xtime, xtime + 1)
-        # plt.plot([0, self.input.time], [0, self.input.time], 'black', linestyle='dashed')
-        plt.plot([0, xtime], [y[0], xtime + y[0]], 'black', linestyle='dashed')
-        plt.plot(x, y, label='Matching Path')
 
-        plt.legend()
+        if not correspondLine:
+            plt.plot([0, xtime], [0, xtime], 'black', linestyle='dashed')
+
+        for joint in x.keys():
+            plt.plot(x[joint], y[joint], label=joint)
+            if correspondLine:
+                plt.plot([0, xtime], [y[joint][0], xtime + y[joint][0]], 'black', linestyle='dashed')
+
+        if legend:
+            plt.legend()
 
         if title is not None:
             plt.title(title)

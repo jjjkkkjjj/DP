@@ -12,8 +12,9 @@ def main():
             AlignedDataLists = [] # [csvfile index][joint index][time][dim]
             csvfiles = type[2:]
             Dir = type[0]
+            name = Dir.split('/')[-2]
             # read all data and hold it to DataList
-            refpath = referenceReader(Dir.split('/')[-2] + type[1] + '.csv', Dir)
+            refpath = referenceReader(name + '-' + type[1] + '.csv', Dir, superDir=name)
             #print(refpath)
 
             refData = csvReader(refpath, type[0])
