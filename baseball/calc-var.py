@@ -24,7 +24,7 @@ def main():
                 if csvfile == refpath:
                     continue
 
-                inpData = csvReader(csvfile, type[0])
+                inpData = csvReader(csvfile, Dir)
                 DP_ = DP(refData, inpData, verbose=False, ignoreWarning=True)
                 DP_.calc()
                 # aligned

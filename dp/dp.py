@@ -199,6 +199,18 @@ class DP(Visualization):
         self.show(x=x, y=y, xtime=self.reference.frame_max, ytime=self.input.frame_max,
                   title='Matching Path', legend=True, savepath=savepath, correspondLine=correspondLine)
 
+    def resultData(self):
+        if len(self.correspondents) == 0:
+            raise NotImplementedError("There is no result: this method must call after calc")
+
+        x = {}
+        y = {}
+        for joint, correspondent in self.correspondents.items():
+            x[joint] = correspondent[:, 0]
+            y[joint] = correspondent[:, 1]
+
+        return x, y
+
 # Data.joints[joint] = [time, dim]
 class Data:
     def __init__(self, interpolate='linear'):

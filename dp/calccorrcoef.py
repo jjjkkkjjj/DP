@@ -1,6 +1,6 @@
 import numpy as np
 
-def corrcoefMean(Datalists, verbose=False): # return Corrcoef{joint:CListneighbor} i.e Corrcoef[joint][neighbor num] = mean c
+def corrcoefMean(Datalists, verbose=False, showcorrcoef=False): # return Corrcoef{joint:CListneighbor} i.e Corrcoef[joint][neighbor num] = mean c
     if type(Datalists).__name__ != 'list':
         raise TypeError("Datalists must be list")
     if len(Datalists) == 0:
@@ -69,7 +69,7 @@ def corrcoefMean(Datalists, verbose=False): # return Corrcoef{joint:CListneighbo
             """
 
         Corrcoef = {}
-        if verbose:
+        if verbose or showcorrcoef:
             print("Correlation coefficients are\n\n")
         for joint in initjointNames:
             if joint in ignoredJoint:
@@ -90,7 +90,7 @@ def corrcoefMean(Datalists, verbose=False): # return Corrcoef{joint:CListneighbo
                     Cs.append(np.mean([x_corrcoef, y_corrcoef, z_corrcoef]))
                     #print("{0}:{1}->{2}".format(joint, initjointNames[joint_neighbor], np.mean([x_corrcoef, y_corrcoef, z_corrcoef])))
                 CList_neighbor.append(np.mean(np.array(Cs)))
-                if verbose:
+                if showcorrcoef or verbose:
                     print("{0}:{1}->{2}".format(joint, initjointNames[joint_neighbor], CList_neighbor[-1]))
             Corrcoef[joint] = CList_neighbor
         return_dict = {'jointNames': initjointNames, 'neighbor': Neighbors, 'corrcoef': Corrcoef, 'ignored': ignoredJoint}
