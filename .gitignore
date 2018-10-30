@@ -216,15 +216,20 @@ pip-selfcheck.json
 # ignore specific directories or files
 /venv
 
-/baseball/result
-/baseball/reference
+/baseball/result/*
+!.gitkeep
+/baseball/reference/*
+!.gitkeep
 /baseball/__video
 /baseball/__oldfiles
 /baseball/*.csv
 
-/volleyball/result
-/volleyball/reference
-/volleyball/trc
+/volleyball/result/*
+!.gitkeep
+/volleyball/reference/*
+!.gitkeep
+/volleyball/trc/*
+!.gitkeep
 /volleyball/__video
 /volleyball/__oldfiles
 /volleyball/*.csv
