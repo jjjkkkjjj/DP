@@ -66,6 +66,15 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
                 view.show(x=X, y=Y, xtime=refData.frame_max, ytime=inpData.frame_max,
                           title=joint, legend=True,
                           savepath=resultDir + "/{0}-R_{1}-I_{2}.png".format(joint, refData.name, inpData.name))
+        elif method == 'fixedInitial-independent':
+            DP_.calcCorrespondInitial(showresult=False, resultdir=resultDir, correspondLine=True)
+
+            view = Visualization()
+            X, Y = DP_.resultData()
+            view.show(x=X, y=Y, xtime=refData.frame_max, ytime=inpData.frame_max,
+                      title='overlayed all matching costs', legend=True, correspondLine=True,
+                      savepath=resultDir + "/overlayed-all-matching-costs.png")
+
         else:
             raise ValueError("{0} is invalid method".format(method))
     print("\nfinished {0}-{1} in {2}".format(serve, method, name))
@@ -73,6 +82,7 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
 def writecorrcoef(name, initFileNum, finFileNum, showcorrcoef, savescvpath):
     Datalists = []
     Dir = "./trc/" + name
+
     for i in range(initFileNum, finFileNum + 1):
         filename = name + '{0:02d}.trc'.format(i)
         data = Data()
@@ -89,4 +99,5 @@ def main(method):
 if __name__ == '__main__':
     #main(method='independent')
     #main(method='corrcoef')
-    main(method='comp-ind-corrcoef')
+    #main(method='comp-ind-corrcoef')
+    main(method='fixedInitial-independent')
