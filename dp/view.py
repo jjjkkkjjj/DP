@@ -19,7 +19,7 @@ class Visualization(object):
     def __init__(self):
         pass
 
-    def show(self, x, y, xtime, ytime, title=None, savepath=None, legend=False, correspondLine=False):
+    def show(self, x, y, xtime, ytime, title=None, savepath=None, legend=False, correspondLine=False, verbose=False):
         if type(x).__name__ != 'dict':
             raise ValueError("x must be \'dict\' instead of {0}".format(type(x).__name__))
         if type(y).__name__ != 'dict':
@@ -60,16 +60,20 @@ class Visualization(object):
             if not os.path.isdir(os.path.dirname(savepath)):
                 os.mkdir(os.path.dirname(savepath))
             plt.savefig(savepath)
+            if verbose:
+                print('saved {0}'.format(savepath))
 
         return
 
-    def show3d(self, x, y, z, jointNames, saveonly=False, title=None, savepath=None, fps=240, lines=None): # x[time, joint]
+    def show3d(self, x, y, z, jointNames, saveonly=False, title=None, savepath=None, fps=240, lines=None, verbose=False): # x[time, joint]
         app = QApplication(sys.argv)
         gui = gui3d(x, y, z, jointNames, fps, lines)
         if saveonly:
             if savepath is None:
                 raise ValueError("when you call save, you must set savepath")
             gui.saveVideo(savepath)
+            if verbose:
+                print('saved {0}'.format(savepath))
             return
         gui.show()
         sys.exit(app.exec_())

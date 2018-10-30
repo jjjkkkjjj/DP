@@ -1,6 +1,6 @@
 import numpy as np
 
-def corrcoefMean(Datalists, verbose=False, showcorrcoef=False): # return Corrcoef{joint:CListneighbor} i.e Corrcoef[joint][neighbor num] = mean c
+def corrcoefMean(Datalists, verbose=False, showcorrcoef=False, savecsvpath=""): # return Corrcoef{joint:CListneighbor} i.e Corrcoef[joint][neighbor num] = mean c
     if type(Datalists).__name__ != 'list':
         raise TypeError("Datalists must be list")
     if len(Datalists) == 0:
@@ -23,8 +23,11 @@ def corrcoefMean(Datalists, verbose=False, showcorrcoef=False): # return Corrcoe
 
         Neighbors = {}
         ignoredJoint = []
+
         if verbose:
             print("The set of neighbor joint is\n\n")
+
+        savetext = 'correletion coefficient table\njoint1,joint2,correlation coefficient,\n'
         for index, joint in enumerate(initjointNames):
             # neighbor
             rows, cols = np.where(np.array(initData.lines) == index)
@@ -92,6 +95,15 @@ def corrcoefMean(Datalists, verbose=False, showcorrcoef=False): # return Corrcoe
                 CList_neighbor.append(np.mean(np.array(Cs)))
                 if showcorrcoef or verbose:
                     print("{0}:{1}->{2}".format(joint, initjointNames[joint_neighbor], CList_neighbor[-1]))
+                savetext += "{0},{1},{2},\n".format(joint, initjointNames[joint_neighbor], CList_neighbor[-1])
             Corrcoef[joint] = CList_neighbor
         return_dict = {'jointNames': initjointNames, 'neighbor': Neighbors, 'corrcoef': Corrcoef, 'ignored': ignoredJoint}
+        if savecsvpath != '':
+            if not '.csv' in savecsvpath[-4] or not '.CSV' in savecsvpath[-4]:
+                savecsvpath += '.csv'
+            with open(savecsvpath, 'w') as f:
+                f.write(savetext)
+            if verbose:
+                print('saved correlation coefficient data to {0}'.format(savecsvpath))
+
         return return_dict

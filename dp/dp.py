@@ -166,6 +166,108 @@ class DP(Visualization):
 
         self.calc(jointNames=jointNames, showresult=showresult, resultdir=resultdir, myLocalCosts=myLocalCosts, correspondLine=correspondLine)
 
+    def calcCorrespondInitial(self, jointNames=None, showresult=False, resultdir="", myLocalCosts=None, correspondLine=True):
+        if jointNames is None:
+            jointNames = self.input.joints # corresponds to input
+        elif type(jointNames).__name__ != 'list':
+            raise ValueError("argument \'joints\'[type:{0}] must be list or None which means calculation for all joints".format(type(jointNames).__name__))
+        elif len(jointNames) == 1:
+            print("Warning: jointNames\' length was 1, this result will be same to calc")
+            self.calc(jointNames=jointNames, showresult=showresult, resultdir=resultdir, myLocalCosts=myLocalCosts, correspondLine=correspondLine)
+            return
+
+        for joint in jointNames:
+            if not (joint in self.reference.joints.keys() and joint in self.input.joints.keys()):
+                print("Warning: {0} is not valid joint name".format(joint))
+                continue
+
+            if self.verbose:
+                sys.stdout.write("\r{0} is calculating...".format(joint))
+                sys.stdout.flush()
+
+            refData = self.reference.joints[joint]
+            inpData = self.input.joints[joint]
+
+
+
+            if myLocalCosts is None:
+                localCosts = cdist(refData, inpData, 'euclidean')
+            else:
+                if type(myLocalCosts).__name__ != 'dict':
+                    raise ValueError("myLocalCosts must be dict")
+                localCosts = myLocalCosts[joint]
+
+            matchingCosts = np.zeros(localCosts.shape)
+            matchingCosts[0, :] = localCosts[0, :]
+
+            for referenceTime in range(1, self.reference.frame_max):
+                matchingCosts[referenceTime, 0] = localCosts[referenceTime, 0] + matchingCosts[referenceTime - 1, 0]
+                matchingCosts[referenceTime, 1] = localCosts[referenceTime, 1] + np.minimum(matchingCosts[referenceTime - 1, 0],
+                                                                                            matchingCosts[referenceTime - 1, 1])
+                matchingCosts[referenceTime, 2:] = localCosts[referenceTime, 2:] + np.minimum.reduce([matchingCosts[referenceTime - 1, 2:],
+                                                                                                      matchingCosts[referenceTime - 1, 1:-1],
+                                                                                                      matchingCosts[referenceTime - 1, :-2]])
+
+            # back track
+            correspondentPoints = []
+
+            try:
+                r, i = self.reference.frame_max - 1, np.nanargmin(matchingCosts[self.reference.frame_max - 1])
+                correspondentPoints.append([r, i])
+
+                data_ = {}
+                data_['tmc'] = matchingCosts[r][i]
+
+                while r > 0 and i > 2:
+                    tmp = np.argmin((matchingCosts[r - 1, i], matchingCosts[r - 1, i - 1],
+                                     matchingCosts[r - 1, i - 2]))
+                    r = r - 1
+                    i = i - tmp
+                    correspondentPoints.insert(0, [r, i])
+
+                    """
+                    if tmp == 0:
+                        r = r - 1
+                        i = i
+                    elif tmp == 1:
+                        r = r - 1
+                        i = i - 1
+                    else:
+                        r = r -1
+                        i = i - 2
+                    """
+
+                while r > 0 and i > 1:
+                    tmp = np.argmin((matchingCosts[r - 1, i], matchingCosts[r - 1, i - 1]))
+                    r = r - 1
+                    i = i - tmp
+                    correspondentPoints.insert(0, [r, i])
+
+                while r > 0:
+                    r = r - 1
+                    i = 0
+                    correspondentPoints.insert(0, [r, i])
+
+                self.correspondents[joint] = np.array(correspondentPoints)
+                self.totalCosts[joint] = np.nanmin(matchingCosts[self.reference.frame_max - 1]) / self.reference.frame_max
+
+                if self.verbose:
+                    sys.stdout.write("\r{0} is calculating...finished\n".format(joint))
+                    sys.stdout.flush()
+                if showresult:
+                    self.showresult(joint, correspondLine)
+                if resultdir != "":
+                    self.saveresult(joint, savepath=resultdir + "/{0}-R_{1}-I_{2}.png".format(joint, self.reference.name, self.input.name),
+                                    correspondLine=correspondLine)
+
+            except ValueError:
+                #if self.verbose:
+                if self.verboseNan:
+                    print("Warning:{0}'s all matching cost has nan".format(joint))
+                    print("skip...")
+                continue
+
+
     def aligned(self, jointNames=None): # input aligned by reference
         if jointNames is None:
             jointNames = self.input.joints
@@ -197,7 +299,7 @@ class DP(Visualization):
         y = {jointName: self.correspondents[jointName][:, 1]}
 
         self.show(x=x, y=y, xtime=self.reference.frame_max, ytime=self.input.frame_max,
-                  title='Matching Path', legend=True, savepath=savepath, correspondLine=correspondLine)
+                  title='Matching Path', legend=True, savepath=savepath, correspondLine=correspondLine, verbose=self.verbose)
 
     def resultData(self):
         if len(self.correspondents) == 0:
