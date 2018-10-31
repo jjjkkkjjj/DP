@@ -220,7 +220,8 @@ pip-selfcheck.json
 !.gitkeep
 /baseball/reference/*
 !.gitkeep
-/baseball/__video
+/baseball/__video/*
+!.gitkeep
 /baseball/__oldfiles
 /baseball/*.csv
 
@@ -230,7 +231,8 @@ pip-selfcheck.json
 !.gitkeep
 /volleyball/trc/*
 !.gitkeep
-/volleyball/__video
+/volleyball/__video/*
+!.gitkeep
 /volleyball/__oldfiles
 /volleyball/*.csv
 
