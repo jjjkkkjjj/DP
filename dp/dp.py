@@ -8,7 +8,8 @@ sys.setrecursionlimit(10000)
 import os
 from dp.view import Visualization
 import warnings
-
+from matplotlib.colors import hsv_to_rgb
+from scipy.stats import norm
 
 class DP(Visualization):
     def __init__(self, reference=None, input=None, verbose=True, ignoreWarning=False, verboseNan=True):
@@ -42,13 +43,27 @@ class DP(Visualization):
         self.verboseNan = verboseNan
         self.correspondents = {}
         self.totalCosts = {}
-        self.matchingCosts = {}
 
-    def calc(self, jointNames=None, showresult=False, resultdir="", myLocalCosts=None, correspondLine=True, matchingcost=False):
+    def calc(self, jointNames=None, showresult=False, resultdir="", myLocalCosts=None, myMatchingCostFunc=None, correspondLine=True, returnMatchingCosts=False):
         if jointNames is None:
             jointNames = list(self.input.joints.keys()) # corresponds to input
         elif type(jointNames).__name__ != 'list':
             raise ValueError("argument \'jointsNames\'[type:{0}] must be list or None which means calculation for all joints".format(type(jointNames).__name__))
+
+        matchingCostFunc = None
+        backTrackFunc = None
+        matchingCosts = {}
+        if myMatchingCostFunc is None:
+            matchingCostFunc, backTrackFunc = constraint('default')
+
+        elif type(myMatchingCostFunc).__name__ != 'dict':
+            raise ValueError('myMatchingCostFunc must be dict, and one\'s key must have [\'matchingCost\',\'backTrack\']')
+        else:
+            try:
+                matchingCostFunc = myMatchingCostFunc['matchingCost']
+                backTrackFunc = myMatchingCostFunc['backTrack']
+            except KeyError:
+                raise KeyError('myMatchingCostFunc must be dict, and one\'s key must have [\'matchingCost\',\'backTrack\']')
 
         for joint in jointNames:
             if not (joint in self.reference.joints.keys() and joint in self.input.joints.keys()):
@@ -69,28 +84,19 @@ class DP(Visualization):
                     raise ValueError("myLocalCosts must be dict")
                 localCosts = myLocalCosts[joint]
 
-            matchingCost = np.zeros(localCosts.shape)
-            matchingCost[0, :] = localCosts[0, :]
+            matchingCost = matchingCostFunc(localCosts)
 
-            for referenceTime in range(1, self.reference.frame_max):
-                matchingCost[referenceTime, 0] = localCosts[referenceTime, 0] + matchingCost[referenceTime - 1, 0]
-                matchingCost[referenceTime, 1] = localCosts[referenceTime, 1] + np.minimum(matchingCost[referenceTime - 1, 0],
-                                                                                            matchingCost[referenceTime - 1, 1])
-                matchingCost[referenceTime, 2:] = localCosts[referenceTime, 2:] + np.minimum.reduce([matchingCost[referenceTime - 1, 2:],
-                                                                                                      matchingCost[referenceTime - 1, 1:-1],
-                                                                                                      matchingCost[referenceTime - 1, :-2]])
-
-            if matchingcost:
+            if returnMatchingCosts:
                 try:
                     tmp = np.nanargmin(matchingCost[self.reference.frame_max - 1]) # check whether all time are nan
-                    self.matchingCosts[joint] = matchingCost
+                    matchingCosts[joint] = matchingCost
                     continue
                 except ValueError:
                     continue
 
             # back track
             try:
-                correspondentPoints = self.__backTrack(matchingCost, inputFinFrame=np.nanargmin(matchingCost[self.reference.frame_max - 1]))
+                correspondentPoints = backTrackFunc(matchingCost, inputFinFrame=np.nanargmin(matchingCost[self.reference.frame_max - 1]))
 
                 self.correspondents[joint] = np.array(correspondentPoints)
                 self.totalCosts[joint] = np.nanmin(
@@ -114,8 +120,10 @@ class DP(Visualization):
                     sys.stdout.flush()
                 continue
 
+        if returnMatchingCosts:
+            return matchingCosts
 
-    def calc_corrcoef(self, corrcoef, showresult=False, resultdir="", correspondLine=True):
+    def calc_corrcoef(self, corrcoef, showresult=False, myMatchingCostFunc=None, resultdir="", correspondLine=True):
         jointNames = corrcoef['jointNames']
         Neighbors = corrcoef['neighbor']
         Corrcoefs = corrcoef['corrcoef']
@@ -141,9 +149,9 @@ class DP(Visualization):
 
             #myLocalCosts[joint] = LocalCosts[index]
 
-        self.calc(jointNames=jointNames, showresult=showresult, resultdir=resultdir, myLocalCosts=myLocalCosts, correspondLine=correspondLine)
+        self.calc(jointNames=jointNames, showresult=showresult, myMatchingCostFunc=myMatchingCostFunc, resultdir=resultdir, myLocalCosts=myLocalCosts, correspondLine=correspondLine)
 
-    def calcCorrespondInitial(self, jointNames=None, showresult=False, resultdir="", correspondLine=True):
+    def calcCorrespondInitial(self, jointNames=None, showresult=False, myMatchingCostFunc=None, resultdir="", correspondLine=True):
         if jointNames is None:
             jointNames = list(self.input.joints.keys()) # corresponds to input
         elif type(jointNames).__name__ != 'list':
@@ -152,6 +160,21 @@ class DP(Visualization):
             print("Warning: jointNames\' length was 1, this result will be same to calc")
             self.calc(jointNames=jointNames, showresult=showresult, resultdir=resultdir, correspondLine=correspondLine)
             return
+
+        backTrackFunc = None
+        matchingCosts = {}
+        if myMatchingCostFunc is None:
+            __, backTrackFunc = constraint('default')
+
+        elif type(myMatchingCostFunc).__name__ != 'dict':
+            raise ValueError(
+                'myMatchingCostFunc must be dict, and one\'s key must have [\'matchingCost\',\'backTrack\']')
+        else:
+            try:
+                backTrackFunc = myMatchingCostFunc['backTrack']
+            except KeyError:
+                raise KeyError(
+                    'myMatchingCostFunc must be dict, and one\'s key must have [\'matchingCost\',\'backTrack\']')
 
         myLocalCosts = {}
         for joint in jointNames:
@@ -172,26 +195,27 @@ class DP(Visualization):
         if self.verbose:
             print("calculating matching costs...")
 
-        self.calc(jointNames=jointNames, showresult=showresult, myLocalCosts=myLocalCosts, resultdir=resultdir, correspondLine=correspondLine, matchingcost=True)
+        matchingCosts = self.calc(jointNames=jointNames, showresult=showresult, myLocalCosts=myLocalCosts, myMatchingCostFunc=myMatchingCostFunc,
+                                  resultdir=resultdir, correspondLine=correspondLine, returnMatchingCosts=True)
 
         totalMatchingCosts = []
 
         for inputTime in range(self.input.frame_max):
-            totalMatchingCosts.append(np.sum([matchingCost[self.reference.frame_max - 1, inputTime] for matchingCost in self.matchingCosts.values()]))
+            totalMatchingCosts.append(np.sum([matchingCost[self.reference.frame_max - 1, inputTime] for matchingCost in matchingCosts.values()]))
         initialFrameReversed = np.argmin(totalMatchingCosts)
 
         if self.verbose:
             print("\ninitial frame is {0}\nback tracking now...".format(self.input.frame_max - initialFrameReversed - 1))
 
-        for joint in self.matchingCosts.keys():
-            correspondentPoints = np.array(self.__backTrack(self.matchingCosts[joint], initialFrameReversed))
+        for joint in matchingCosts.keys():
+            correspondentPoints = np.array(backTrackFunc(matchingCosts[joint], initialFrameReversed))
             # correspondentPoints[reference, input]
             # reverse ref
             correspondentPoints[:, 0] = self.reference.frame_max - 1 - correspondentPoints[::-1, 0]
             # reverse inp
             correspondentPoints[:, 1] = self.input.frame_max - 1 - correspondentPoints[::-1, 1]
 
-            matchingCost = self.matchingCosts[joint][::-1, ::-1]
+            matchingCost = matchingCosts[joint][::-1, ::-1]
 
             self.correspondents[joint] = correspondentPoints
             self.totalCosts[joint] = np.nanmin(
@@ -208,34 +232,6 @@ class DP(Visualization):
                                                                                    self.input.name),
                                 correspondLine=correspondLine)
 
-        self.matchingCosts = {}
-
-
-    def __backTrack(self, matchingCost, inputFinFrame):
-        # back track
-        correspondentPoints = []
-        r, i = self.reference.frame_max - 1, inputFinFrame
-        correspondentPoints.append([r, i])
-
-        while r > 0 and i > 2:
-            tmp = np.argmin((matchingCost[r - 1, i], matchingCost[r - 1, i - 1],
-                             matchingCost[r - 1, i - 2]))
-            r = r - 1
-            i = i - tmp
-            correspondentPoints.insert(0, [r, i])
-
-        while r > 0 and i > 1:
-            tmp = np.argmin((matchingCost[r - 1, i], matchingCost[r - 1, i - 1]))
-            r = r - 1
-            i = i - tmp
-            correspondentPoints.insert(0, [r, i])
-
-        while r > 0:
-            r = r - 1
-            i = 0
-            correspondentPoints.insert(0, [r, i])
-
-        return correspondentPoints
 
     def aligned(self, jointNames=None): # input aligned by reference
         if jointNames is None:
@@ -281,6 +277,76 @@ class DP(Visualization):
             y[joint] = correspondent[:, 1]
 
         return x, y
+
+    def resultVisualization(self, fps=240, maximumGapTime=0.1, resultDir=""):
+        myMatchingCostFunc = constraint(kind='visualization')
+        self.calcCorrespondInitial(showresult=False, resultdir=resultDir, myMatchingCostFunc=myMatchingCostFunc, correspondLine=True)
+        """
+        Ref, Inp = self.resultData()
+
+        colors = {} # slope = 1 -> 0pt, slope = 2 -> 1pt, slope = 0 -> -1pt
+        runningWeightedAveRange = int(fps * maximumGapTime)
+        if runningWeightedAveRange % 2 == 0:
+            runningWeightedAveRange += 1
+
+
+        weights = norm.pdf(x=np.arange(runningWeightedAveRange) - int(runningWeightedAveRange/2), loc=0, scale=2)
+        weights = weights / np.max(weights)
+        for joint, ref, inp in zip(Ref.keys(), Ref.values(), Inp.values()):
+
+            slopes = []
+            init = inp[0]
+            fin = inp[-1]
+            for inpT in range(init, fin):
+                indicesInpT = np.where(inp == inpT)[0]
+                if indicesInpT.size == 0:
+                    slopes.append(slopes[-1] + 0.5)
+                elif indicesInpT.size == 1:
+                    slopes.append(ref[indicesInpT])
+                else:
+                    slopes.append(ref[np.min(indicesInpT)] + indicesInpT.size - 1)
+
+            slopes = np.concatenate([[0], np.diff(slopes)]) #0,1,2
+            v = np.ones(weights.size) * weights / np.sum(weights)
+            slopes = np.convolve(slopes, v, mode='same')
+
+            slopes = np.concatenate([[0 for i in range(init)], slopes, [0 for i in range(fin, self.input.frame_max)]])
+
+            # convert slope into point
+            slopes[slopes == 0] = -1
+            slopes[slopes == 1] = 0
+            slopes[slopes == 2] = 1
+
+            import matplotlib.pyplot as plt
+            plt.cla()
+            plt.bar(np.arange(self.input.frame_max), slopes)
+            plt.show()
+            exit()
+            # running weighted average
+            # running average -> v = np.ones(size) / float(size)
+            v = np.ones(weights.size) * weights / np.sum(weights)
+            runningAverage = np.convolve(slopes, v, mode='full')
+            # convert running average into hsv value
+            hsv = np.zeros((self.input.frame_max, 3)) # [time, (h,s,v)]
+            # red means fast
+            print(self.input.frame_max)
+            print(X[joint].shape)
+            print(y.shape)
+            runningAveragePlusIndices = runningAverage[runningAverage >= 0]
+            hsv[runningAveragePlusIndices, 0] = 0.0
+            hsv[runningAveragePlusIndices, 1] = runningAverage[runningAveragePlusIndices]
+            hsv[runningAveragePlusIndices, 2] = 1.0
+            # blue means slow
+            runningAverageMinusIndices = runningAverage[runningAverage < 0]
+            hsv[runningAverageMinusIndices, 0] = 2 / 3.0
+            hsv[runningAverageMinusIndices, 1] = runningAverage[runningAverageMinusIndices]
+            hsv[runningAverageMinusIndices, 2] = 1.0
+
+            colors[joint] = hsv_to_rgb(hsv)
+        print(colors)
+        exit()
+        self.input.show(fps=240, colors=colors)
+        """
 
 # Data.joints[joint] = [time, dim]
 class Data:
@@ -492,12 +558,12 @@ class Data:
         else:
             print("Warning: {0} is unknown lines".format(lines))
 
-    def show(self, fps=240):
+    def show(self, fps=240, colors=None):
         if self.joints is None:
             raise NotImplementedError("show function must be implemented after setvalue or set_from_trc")
         vis = Visualization()
         data = np.array(list(self.joints.values())) # [joint index][time][dim]
-        vis.show3d(x=data[:, :, 0].T, y=data[:, :, 1].T, z=data[:, :, 2].T, jointNames=self.joints, lines=self.lines, fps=fps)
+        vis.show3d(x=data[:, :, 0].T, y=data[:, :, 1].T, z=data[:, :, 2].T, jointNames=self.joints, lines=self.lines, fps=fps, colors=colors)
 
     def save(self, path, fps=240, saveonly=True):
         if self.joints is None:
@@ -568,3 +634,61 @@ def referenceReader(name, directory, superDir='/'):
                 if row[1] == directory:
                     return row[5]
     raise ValueError("No such a {0}".format(directory))
+
+def constraint(kind='default'):
+    if kind == 'default' or kind == 'asynm':
+        def asynmCalc(localCosts):
+            matchingCost = np.zeros(localCosts.shape)
+            matchingCost[0, :] = localCosts[0, :]
+
+            referenceTimeMax = localCosts.shape[0]
+            for referenceTime in range(1, referenceTimeMax):
+                matchingCost[referenceTime, 0] = localCosts[referenceTime, 0] + matchingCost[referenceTime - 1, 0]
+                matchingCost[referenceTime, 1] = localCosts[referenceTime, 1] + np.minimum(
+                    matchingCost[referenceTime - 1, 0],
+                    matchingCost[referenceTime - 1, 1])
+                matchingCost[referenceTime, 2:] = localCosts[referenceTime, 2:] + np.minimum.reduce(
+                    [matchingCost[referenceTime - 1, 2:],
+                     matchingCost[referenceTime - 1, 1:-1],
+                     matchingCost[referenceTime - 1, :-2]])
+
+            return matchingCost
+
+        def asynmBackTrack(matchingCost, inputFinFrame):
+            # back track
+            correspondentPoints = []
+            r, i = matchingCost.shape[0] - 1, inputFinFrame
+            correspondentPoints.append([r, i])
+
+            while r > 0 and i > 2:
+                tmp = np.argmin((matchingCost[r - 1, i], matchingCost[r - 1, i - 1],
+                                 matchingCost[r - 1, i - 2]))
+                r = r - 1
+                i = i - tmp
+                correspondentPoints.insert(0, [r, i])
+
+            while r > 0 and i > 1:
+                tmp = np.argmin((matchingCost[r - 1, i], matchingCost[r - 1, i - 1]))
+                r = r - 1
+                i = i - tmp
+                correspondentPoints.insert(0, [r, i])
+
+            while r > 0:
+                r = r - 1
+                i = 0
+                correspondentPoints.insert(0, [r, i])
+
+            return correspondentPoints
+
+        return asynmCalc, asynmBackTrack
+
+    elif kind == 'visualization' or kind == 'sync':
+        def sync(localCosts):
+            matchingCost = np.zeros(localCosts.shape)
+            matchingCost[0, :] = localCosts[0, :]
+
+            referenceTimeMax = localCosts.shape[0]
+
+
+    else:
+        raise ValueError('{0} is invalid constraint name'.format(kind))
