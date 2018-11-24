@@ -54,7 +54,9 @@ class DP(Visualization):
         backTrackFunc = None
         matchingCosts = {}
         if myMatchingCostFunc is None:
-            matchingCostFunc, backTrackFunc = constraint('default')
+            myMatchingCostFunc = constraint('default')
+            matchingCostFunc = myMatchingCostFunc['matchingCost']
+            backTrackFunc = myMatchingCostFunc['backTrack']
 
         elif type(myMatchingCostFunc).__name__ != 'dict':
             raise ValueError('myMatchingCostFunc must be dict, and one\'s key must have [\'matchingCost\',\'backTrack\']')
@@ -169,7 +171,7 @@ class DP(Visualization):
         backTrackFunc = None
         matchingCosts = {}
         if myMatchingCostFunc is None:
-            __, backTrackFunc = constraint('default')
+            backTrackFunc = constraint('default')['backTrack']
 
         elif type(myMatchingCostFunc).__name__ != 'dict':
             raise ValueError(
@@ -284,8 +286,8 @@ class DP(Visualization):
         return x, y
 
     def resultVisualization(self, fps=240, maximumGapTime=0.1, resultDir=""):
-        matchingCostFunc, backTrackFunc = constraint(kind='visualization')
-        myMatchingCostFunc = {'matchingCost': matchingCostFunc, 'backTrack': backTrackFunc}
+        myMatchingCostFunc = constraint(kind='visualization')
+
         #self.calcCorrespondInitial(showresult=False, resultdir=resultDir, myMatchingCostFunc=myMatchingCostFunc, correspondLine=True)
         self.calcCorrespondInitial(showresult=True, resultdir="", myMatchingCostFunc=myMatchingCostFunc,
                                    correspondLine=True)
@@ -690,7 +692,7 @@ def constraint(kind='default'):
 
             return correspondentPoints
 
-        return asynmCalc, asynmBackTrack
+        return {'matchingCost': asynmCalc, 'backTrack': asynmBackTrack}
 
     elif kind == 'visualization' or kind == 'sync':
         def syncCalc(localCost):
@@ -769,7 +771,7 @@ def constraint(kind='default'):
 
             return correspondentPoints
 
-        return syncCalc, syncBackTrack
+        return {'matchingCost': syncCalc, 'backTrack': syncBackTrack}
         """
         # for debug
             a = np.array([[1,5,6,2], [1,3,3,3], [3,2,1,0], [3,4,2,2], [2,3,1,3]])
