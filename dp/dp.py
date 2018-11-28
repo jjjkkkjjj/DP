@@ -9,7 +9,6 @@ import os
 from dp.view import Visualization
 import warnings
 from matplotlib.colors import hsv_to_rgb
-from scipy.stats import norm
 
 class DP(Visualization):
     def __init__(self, reference=None, input=None, verbose=True, ignoreWarning=False, verboseNan=True):
@@ -67,9 +66,9 @@ class DP(Visualization):
             except KeyError:
                 raise KeyError('myMatchingCostFunc must be dict, and one\'s key must have [\'matchingCost\',\'backTrack\']')
 
-        for joint in jointNames:
+        for i, joint in enumerate(jointNames):
             if not (joint in self.reference.joints.keys() and joint in self.input.joints.keys()):
-                print("Warning: {0} is not valid joint name".format(joint))
+                print("\nWarning: {0} is not valid joint name".format(joint))
                 continue
 
             if self.verbose:
@@ -208,7 +207,7 @@ class DP(Visualization):
         totalMatchingCosts = []
 
         for inputTime in range(self.input.frame_max):
-            totalMatchingCosts.append(np.sum([matchingCost[self.reference.frame_max - 1, inputTime] for matchingCost in matchingCosts.values()]))
+            totalMatchingCosts.append(np.nansum([matchingCost[self.reference.frame_max - 1, inputTime] for matchingCost in matchingCosts.values()]))
         initialFrameReversed = np.argmin(totalMatchingCosts)
 
         if self.verbose:
@@ -288,75 +287,76 @@ class DP(Visualization):
     def resultVisualization(self, fps=240, maximumGapTime=0.1, resultDir=""):
         myMatchingCostFunc = constraint(kind='visualization')
 
-        #self.calcCorrespondInitial(showresult=False, resultdir=resultDir, myMatchingCostFunc=myMatchingCostFunc, correspondLine=True)
-        self.calcCorrespondInitial(showresult=True, resultdir="", myMatchingCostFunc=myMatchingCostFunc,
-                                   correspondLine=True)
-        """
+        self.calcCorrespondInitial(showresult=False, resultdir=resultDir, myMatchingCostFunc=myMatchingCostFunc, correspondLine=True)
+
         Ref, Inp = self.resultData()
 
-        colors = {} # slope = 1 -> 0pt, slope = 2 -> 1pt, slope = 0 -> -1pt
-        runningWeightedAveRange = int(fps * maximumGapTime)
-        if runningWeightedAveRange % 2 == 0:
-            runningWeightedAveRange += 1
+        # colors is ndarray:[time, joint(index)]
+        colors = [] # slope = 1 -> 0pt, slope = 2 -> 1pt, slope = 1/2 -> -1pt
+        runningAveRange = int(fps * maximumGapTime)
+        if runningAveRange < 2:
+            raise ValueError('running average range(= fps*maximumGapTime) must be more than 2')
 
+        for joint in self.input.joints.keys():
+            if joint not in list(Ref.keys()):
+                hsv = np.zeros((self.input.frame_max, 3))
+                colors.append(hsv_to_rgb(hsv))
+                continue
+            ref = Ref[joint]
+            inp = Inp[joint]
 
-        weights = norm.pdf(x=np.arange(runningWeightedAveRange) - int(runningWeightedAveRange/2), loc=0, scale=2)
-        weights = weights / np.max(weights)
-        for joint, ref, inp in zip(Ref.keys(), Ref.values(), Inp.values()):
-
-            slopes = []
             init = inp[0]
             fin = inp[-1]
-            for inpT in range(init, fin):
-                indicesInpT = np.where(inp == inpT)[0]
-                if indicesInpT.size == 0:
-                    slopes.append(slopes[-1] + 0.5)
-                elif indicesInpT.size == 1:
-                    slopes.append(ref[indicesInpT])
-                else:
-                    slopes.append(ref[np.min(indicesInpT)] + indicesInpT.size - 1)
 
-            slopes = np.concatenate([[0], np.diff(slopes)]) #0,1,2
-            v = np.ones(weights.size) * weights / np.sum(weights)
+            slopes = np.gradient(ref)
+            v = np.ones(runningAveRange) / float(runningAveRange)
             slopes = np.convolve(slopes, v, mode='same')
 
-            slopes = np.concatenate([[0 for i in range(init)], slopes, [0 for i in range(fin, self.input.frame_max)]])
-
-            # convert slope into point
-            slopes[slopes == 0] = -1
-            slopes[slopes == 1] = 0
-            slopes[slopes == 2] = 1
-
+            scores = slopes - 1
+            scores[scores < 0] /= 0.5
+            # rounding error
+            scores[scores < -1] = -1
+            scores[scores > 1] = 1
+            #print(scores.max())
+            #print(scores.min())
+            """
             import matplotlib.pyplot as plt
-            plt.cla()
-            plt.bar(np.arange(self.input.frame_max), slopes)
+            plt.clf()
+            plt.ylim([-1, 2])
+            plt.plot(np.arange(fin - init + 1), scores)
             plt.show()
-            exit()
-            # running weighted average
-            # running average -> v = np.ones(size) / float(size)
-            v = np.ones(weights.size) * weights / np.sum(weights)
-            runningAverage = np.convolve(slopes, v, mode='full')
+            """
             # convert running average into hsv value
-            hsv = np.zeros((self.input.frame_max, 3)) # [time, (h,s,v)]
+            # chage satulation -> white:red, blue:white
+            hsvInpArea = np.zeros((scores.size, 3)) # [time, (h,s,v)]
             # red means fast
-            print(self.input.frame_max)
-            print(X[joint].shape)
-            print(y.shape)
-            runningAveragePlusIndices = runningAverage[runningAverage >= 0]
-            hsv[runningAveragePlusIndices, 0] = 0.0
-            hsv[runningAveragePlusIndices, 1] = runningAverage[runningAveragePlusIndices]
-            hsv[runningAveragePlusIndices, 2] = 1.0
-            # blue means slow
-            runningAverageMinusIndices = runningAverage[runningAverage < 0]
-            hsv[runningAverageMinusIndices, 0] = 2 / 3.0
-            hsv[runningAverageMinusIndices, 1] = runningAverage[runningAverageMinusIndices]
-            hsv[runningAverageMinusIndices, 2] = 1.0
+            redIndices = scores >= 0
 
-            colors[joint] = hsv_to_rgb(hsv)
-        print(colors)
-        exit()
-        self.input.show(fps=240, colors=colors)
-        """
+            hsvInpArea[redIndices, 0] = 0.0
+            #hsvInpArea[redIndices, 1] = scores[redIndices]
+            #hsvInpArea[redIndices, 2] = 1.0
+            ### center color is black
+            hsvInpArea[redIndices, 1] = 1.0
+            hsvInpArea[redIndices, 2] = scores[redIndices]
+            # blue means slow
+            blueIndices = scores < 0
+            hsvInpArea[blueIndices, 0] = 2 / 3.0
+            #hsvInpArea[blueIndices, 1] = np.abs(scores[blueIndices])
+            #hsvInpArea[blueIndices, 2] = 1.0
+            ### center color is black
+            hsvInpArea[blueIndices, 1] = 1.0
+            hsvInpArea[blueIndices, 2] = np.abs(scores[blueIndices])
+
+            hsv = np.zeros((self.input.frame_max, 3))
+            hsv[init:fin + 1, :] = hsvInpArea
+
+            #print((init, fin))
+            # each terminate time is difference
+            colors.append(hsv_to_rgb(hsv))
+
+        colors = np.array(colors).transpose((1, 0, 2))
+
+        return colors
 
 # Data.joints[joint] = [time, dim]
 class Data:
@@ -573,14 +573,16 @@ class Data:
             raise NotImplementedError("show function must be implemented after setvalue or set_from_trc")
         vis = Visualization()
         data = np.array(list(self.joints.values())) # [joint index][time][dim]
-        vis.show3d(x=data[:, :, 0].T, y=data[:, :, 1].T, z=data[:, :, 2].T, jointNames=self.joints, lines=self.lines, fps=fps, colors=colors)
+        vis.show3d(x=data[:, :, 0].T, y=data[:, :, 1].T, z=data[:, :, 2].T,
+                   jointNames=self.joints, lines=self.lines, fps=fps, colors=colors)
 
-    def save(self, path, fps=240, saveonly=True):
+    def save(self, path, fps=240, colors=None, saveonly=True):
         if self.joints is None:
             raise NotImplementedError("save function must be implemented after setvalue or set_from_trc")
         vis = Visualization()
         data = np.array(list(self.joints.values()))  # [joint index][time][dim]
-        vis.show3d(x=data[:, :, 0].T, y=data[:, :, 1].T, z=data[:, :, 2].T, jointNames=self.joints, saveonly=saveonly, savepath=path, lines=self.lines, fps=fps)
+        vis.show3d(x=data[:, :, 0].T, y=data[:, :, 1].T, z=data[:, :, 2].T,
+                   jointNames=self.joints, saveonly=saveonly, savepath=path, lines=self.lines, fps=fps, colors=colors)
 
 def referenceDetector(Datalists, name, save=True, superDir='/', verbose=False, verboseNan=False):
     if type(Datalists).__name__ != 'list':
@@ -718,58 +720,108 @@ def constraint(kind='default'):
             if np.sum(np.isinf(matchingCost[referenceTimeMax - 1, :])) == matchingCost.shape[1]: # all matching cost are infinity
                 raise OverflowError('all matching cost are infinity')
             return matchingCost
+        if kind == 'sync':
+            def syncBackTrack(**kwargs):
+                localCost = kwargs['localCost']
+                matchingCost = kwargs['matchingCost']
+                inputFinFrameBackTracked = kwargs['inputFinFrameBackTracked']
 
-        def syncBackTrack(**kwargs):
-            localCost = kwargs['localCost']
-            matchingCost = kwargs['matchingCost']
-            inputFinFrameBackTracked = kwargs['inputFinFrameBackTracked']
+                correspondentPoints = []
+                r, i = matchingCost.shape[0] - 1, inputFinFrameBackTracked
+                correspondentPoints.append([r, i])
 
-            correspondentPoints = []
-            r, i = matchingCost.shape[0] - 1, inputFinFrameBackTracked
-            correspondentPoints.append([r, i])
+                while r > 1 and i > 1:
+                    tmp = np.argmin((matchingCost[r - 2, i - 1] + 2 * localCost[r - 1, i],
+                                     matchingCost[r - 1, i - 1] + localCost[r, i],
+                                     matchingCost[r - 1, i - 2] + 2 * localCost[r, i - 1]))
 
-            while r > 1 and i > 1:
-                tmp = np.argmin((matchingCost[r - 2, i - 1] + 2*localCost[r - 1, i],
-                                 matchingCost[r - 1, i - 1] + localCost[r, i],
-                                 matchingCost[r - 1, i - 2] + 2*localCost[r, i - 1]))
+                    if tmp == 0:
+                        correspondentPoints.insert(0, [r - 1, i])
+                        r = r - 2
+                        i = i - 1
+                        correspondentPoints.insert(0, [r, i])
+                    elif tmp == 1:
+                        r = r - 1
+                        i = i - 1
+                        correspondentPoints.insert(0, [r, i])
+                    else:
+                        correspondentPoints.insert(0, [r, i - 1])
+                        r = r - 1
+                        i = i - 2
+                        correspondentPoints.insert(0, [r, i])
 
-                if tmp == 0:
+                if r == 2 and i == 1:
                     correspondentPoints.insert(0, [r - 1, i])
                     r = r - 2
                     i = i - 1
                     correspondentPoints.insert(0, [r, i])
-                elif tmp == 1:
-                    r = r - 1
+                elif r == 1 and i == 1:
+                    correspondentPoints.insert(0, [r - 1, i - 1])
+                else:  # r > 0 and i == 1
+                    tmp = np.argmin((matchingCost[r - 1, i - 1] + localCost[r, i],
+                                     matchingCost[r - 1, i - 2] + 2 * localCost[r, i - 1]))
+
+                    if tmp == 0:
+                        r = r - 1
+                        i = i - 1
+                        correspondentPoints.insert(0, [r, i])
+                    elif tmp == 1:
+                        correspondentPoints.insert(0, [r, i - 1])
+                        r = r - 1
+                        i = i - 2
+                        correspondentPoints.insert(0, [r, i])
+
+                return correspondentPoints
+        else: # visualization, all input time are matched
+            def syncBackTrack(**kwargs):
+                localCost = kwargs['localCost']
+                matchingCost = kwargs['matchingCost']
+                inputFinFrameBackTracked = kwargs['inputFinFrameBackTracked']
+
+                correspondentPoints = []
+                r, i = matchingCost.shape[0] - 1, inputFinFrameBackTracked
+                correspondentPoints.append([r, i])
+
+                while r > 1 and i > 1:
+                    tmp = np.argmin((matchingCost[r - 2, i - 1] + 2 * localCost[r - 1, i],
+                                     matchingCost[r - 1, i - 1] + localCost[r, i],
+                                     matchingCost[r - 1, i - 2] + 2 * localCost[r, i - 1]))
+
+                    if tmp == 0: # slope = 2 (d(inp)/d(ref))
+                        r = r - 2
+                        i = i - 1
+                        correspondentPoints.insert(0, [r, i])
+                    elif tmp == 1: # slope = 1 (d(inp)/d(ref))
+                        r = r - 1
+                        i = i - 1
+                        correspondentPoints.insert(0, [r, i])
+                    else: # slope = 1/2 (d(inp)/d(ref))
+                        correspondentPoints.insert(0, [r, i - 1])
+                        r = r - 1
+                        i = i - 2
+                        correspondentPoints.insert(0, [r, i])
+
+                if r == 2 and i == 1:
+                    r = r - 2
                     i = i - 1
                     correspondentPoints.insert(0, [r, i])
-                else:
-                    correspondentPoints.insert(0, [r, i - 1])
-                    r = r - 1
-                    i = i - 2
-                    correspondentPoints.insert(0, [r, i])
+                elif r == 1 and i == 1:
+                    correspondentPoints.insert(0, [r - 1, i - 1])
+                else:  # r > 0 and i == 1
+                    tmp = np.argmin((matchingCost[r - 1, i - 1] + localCost[r, i],
+                                     matchingCost[r - 1, i - 2] + 2 * localCost[r, i - 1]))
 
-            if r == 2 and i == 1:
-                correspondentPoints.insert(0, [r - 1, i])
-                r = r - 2
-                i = i - 1
-                correspondentPoints.insert(0, [r, i])
-            elif r == 1 and i == 1:
-                correspondentPoints.insert(0, [r - 1, i - 1])
-            else: # r > 0 and i == 1
-                tmp = np.argmin((matchingCost[r - 1, i - 1] + localCost[r, i],
-                                 matchingCost[r - 1, i - 2] + 2 * localCost[r, i - 1]))
+                    if tmp == 0:
+                        r = r - 1
+                        i = i - 1
+                        correspondentPoints.insert(0, [r, i])
+                    elif tmp == 1:
+                        correspondentPoints.insert(0, [r, i - 1])
+                        r = r - 1
+                        i = i - 2
+                        correspondentPoints.insert(0, [r, i])
 
-                if tmp == 0:
-                    r = r - 1
-                    i = i - 1
-                    correspondentPoints.insert(0, [r, i])
-                elif tmp == 1:
-                    correspondentPoints.insert(0, [r, i - 1])
-                    r = r - 1
-                    i = i - 2
-                    correspondentPoints.insert(0, [r, i])
-
-            return correspondentPoints
+                return correspondentPoints
 
         return {'matchingCost': syncCalc, 'backTrack': syncBackTrack}
         """

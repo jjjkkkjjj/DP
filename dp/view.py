@@ -49,7 +49,7 @@ class Visualization(object):
                 plt.plot([0, xtime], [y[joint][0], xtime + y[joint][0]], 'black', linestyle='dashed')
 
         if legend:
-            plt.legend()
+            plt.legend(ncol=2, bbox_to_anchor=(1.05, 1), prop={'size': 6})
 
         if title is not None:
             plt.title(title)
@@ -59,15 +59,14 @@ class Visualization(object):
         else:
             if not os.path.isdir(os.path.dirname(savepath)):
                 os.mkdir(os.path.dirname(savepath))
-            plt.savefig(savepath)
+            plt.savefig(savepath, bbox_inches="tight")
             if verbose:
                 print('saved {0}'.format(savepath))
 
         return
 
-    def show3d(self, x, y, z, jointNames, saveonly=False, title=None, savepath=None, fps=240, lines=None, verbose=False): # x[time, joint]
-        app = QApplication(sys.argv)
-        gui = gui3d(x, y, z, jointNames, fps, lines)
+    def show3d(self, x, y, z, jointNames, saveonly=False, title=None, savepath=None, fps=240, lines=None, verbose=False, colors=None): # x[time, joint] ,color must be normalized -1~1
+        gui = gui3d(x, y, z, jointNames, fps, lines, colors)
         if saveonly:
             if savepath is None:
                 raise ValueError("when you call save, you must set savepath")
@@ -75,12 +74,13 @@ class Visualization(object):
             if verbose:
                 print('saved {0}'.format(savepath))
             return
+        app = QApplication(sys.argv)
         gui.show()
         sys.exit(app.exec_())
 
 
 class gui3d(QMainWindow):
-    def __init__(self, x, y, z, joints, fps=240, lines=None, parent=None):
+    def __init__(self, x, y, z, joints, fps=240, lines=None, colors=None, parent=None):
         QMainWindow.__init__(self, parent)
         self.frame = 0
         self.x = x # [time][joint index]
@@ -89,6 +89,7 @@ class gui3d(QMainWindow):
         self.joints = joints
         self.lines = lines
         self.fps = fps
+        self.colors = colors
 
         self.create_menu()
         self.create_mainframe()
@@ -121,9 +122,15 @@ class gui3d(QMainWindow):
             self.axes.set_zlim(zlim)
             self.axes.view_init(elev=elev, azim=azim)
 
-        self.scatter = [
-            self.axes.scatter3D(self.x[self.frame, i], self.y[self.frame, i], self.z[self.frame, i], ".",
-                                color='blue', picker=5) for i in range(len(self.joints))]
+        if self.colors is not None:
+            self.scatter = [
+                self.axes.scatter3D(self.x[self.frame, i], self.y[self.frame, i], self.z[self.frame, i], ".",
+                                    color=self.colors[self.frame, i], picker=5) for i in range(len(self.joints))]
+        else:
+            self.scatter = [
+                self.axes.scatter3D(self.x[self.frame, i], self.y[self.frame, i], self.z[self.frame, i], ".", edgecolor='black',
+                                    color='black', picker=5) for i in range(len(self.joints))]
+            pass
 
         if self.lines is not None:
             for line in self.lines:
@@ -296,6 +303,8 @@ class gui3d(QMainWindow):
 
     def saveVideo(self, savepath):
         size = (600, 400)
+        sys.stdout.write('\r')
+        sys.stdout.flush()
         fourcc = cv2.VideoWriter_fourcc(*'MPEG')
         video = cv2.VideoWriter(savepath, fourcc, self.fps, size)
 
@@ -357,7 +366,15 @@ class gui3d(QMainWindow):
             self.axes.set_ylim(yrange)
             self.axes.set_zlim(zrange)
 
-        self.axes.scatter3D(self.x[frame], self.y[frame], self.z[frame], ".")
+        if self.colors is not None:
+            self.scatter = [
+                self.axes.scatter3D(self.x[frame, i], self.y[frame, i], self.z[frame, i], ".",
+                                    color=self.colors[frame, i], picker=5) for i in range(len(self.joints))]
+        else:
+            self.scatter = [
+                self.axes.scatter3D(self.x[frame, i], self.y[frame, i], self.z[frame, i], ".", edgecolor='black',
+                                    color='black', picker=5) for i in range(len(self.joints))]
+        #self.axes.scatter3D(self.x[frame], self.y[frame], self.z[frame], ".")
 
         if self.lines is not None:
             for line in self.lines:

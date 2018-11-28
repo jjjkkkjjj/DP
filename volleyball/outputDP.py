@@ -42,6 +42,12 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
             os.mkdir(resultDir)
         if method == 'independent':
             DP_.calc(showresult=False, resultdir=resultDir, correspondLine=True)
+
+            view = Visualization()
+            X, Y = DP_.resultData()
+            view.show(x=X, y=Y, xtime=refData.frame_max, ytime=inpData.frame_max,
+                      title='overlayed all matching costs', legend=True, correspondLine=False,
+                      savepath=resultDir + "/overlayed-all-matching-costs.png")
         elif method == 'corrcoef':
             DP_.calc_corrcoef(corrcoef, showresult=False, resultdir=resultDir, correspondLine=True)
         elif method == 'comp-ind-corrcoef':
@@ -74,6 +80,11 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
             view.show(x=X, y=Y, xtime=refData.frame_max, ytime=inpData.frame_max,
                       title='overlayed all matching costs', legend=True, correspondLine=True,
                       savepath=resultDir + "/overlayed-all-matching-costs.png")
+        elif method == 'fixedInitial-independent-visualization':
+            fps = 240
+            colors = DP_.resultVisualization(fps=fps, maximumGapTime=0.1, resultDir=resultDir)
+            DP_.input.show(fps=fps, colors=colors)
+            #DP_.input.save(path=resultDir + "/R_{0}-I_{1}.mp4".format(refData.name, inpData.name), fps=fps, colors=colors, saveonly=True)
 
         else:
             raise ValueError("{0} is invalid method".format(method))
@@ -100,4 +111,5 @@ if __name__ == '__main__':
     #main(method='independent')
     #main(method='corrcoef')
     #main(method='comp-ind-corrcoef')
-    main(method='fixedInitial-independent')
+    #main(method='fixedInitial-independent')
+    main(method='fixedInitial-independent-visualization')

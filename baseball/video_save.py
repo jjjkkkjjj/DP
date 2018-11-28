@@ -12,7 +12,7 @@ def main():
             for csvfile in csvfiles:
                 data = csvReader(csvfile, type[0])
                 data.save('__video/{0}.mp4'.format(csvfile[:-4]), fps=240, saveonly=True)
-
+            exit()
 
 if __name__ == '__main__':
     main()
