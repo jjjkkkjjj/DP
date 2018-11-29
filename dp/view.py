@@ -70,6 +70,7 @@ class Visualization(object):
         if saveonly:
             if savepath is None:
                 raise ValueError("when you call save, you must set savepath")
+            gui.setViewRange()
             gui.saveVideo(savepath)
             if verbose:
                 print('saved {0}'.format(savepath))
@@ -300,6 +301,21 @@ class gui3d(QMainWindow):
 
             QMessageBox.information(self, "Saved", "Saved to {0}".format(savepath))
 
+    def setViewRange(self):
+        azim = self.axes.azim
+        elev = self.axes.elev
+        xlim = list((np.nanmin(self.x), np.nanmax(self.x)))
+        ylim = list((np.nanmin(self.y), np.nanmax(self.y)))
+        zlim = list((np.nanmin(self.z), np.nanmax(self.z)))
+        addlim = np.max([xlim[1] - xlim[0], ylim[1] - ylim[0], zlim[1] - zlim[0]])
+        xlim[1] = xlim[0] + addlim
+        ylim[1] = ylim[0] + addlim
+        zlim[1] = zlim[0] + addlim
+
+        self.axes.set_xlim(xlim)
+        self.axes.set_ylim(ylim)
+        self.axes.set_zlim(zlim)
+        self.axes.view_init(elev=elev, azim=azim)
 
     def saveVideo(self, savepath):
         size = (600, 400)

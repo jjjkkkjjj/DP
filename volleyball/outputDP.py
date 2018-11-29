@@ -83,8 +83,8 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
         elif method == 'fixedInitial-independent-visualization':
             fps = 240
             colors = DP_.resultVisualization(fps=fps, maximumGapTime=0.1, resultDir=resultDir)
-            DP_.input.show(fps=fps, colors=colors)
-            #DP_.input.save(path=resultDir + "/R_{0}-I_{1}.mp4".format(refData.name, inpData.name), fps=fps, colors=colors, saveonly=True)
+            #DP_.input.show(fps=fps, colors=colors)
+            DP_.input.save(path=resultDir + "/R_{0}-I_{1}.mp4".format(refData.name, inpData.name), fps=fps, colors=colors, saveonly=True)
 
         else:
             raise ValueError("{0} is invalid method".format(method))
