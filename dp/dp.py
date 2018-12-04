@@ -573,6 +573,7 @@ class Data:
     def show(self, fps=240, colors=None):
         if self.joints is None:
             raise NotImplementedError("show function must be implemented after setvalue or set_from_trc")
+        from dp.view import Visualization
         vis = Visualization()
         data = np.array(list(self.joints.values())) # [joint index][time][dim]
         vis.show3d(x=data[:, :, 0].T, y=data[:, :, 1].T, z=data[:, :, 2].T,
@@ -581,6 +582,7 @@ class Data:
     def save(self, path, fps=240, colors=None, saveonly=True):
         if self.joints is None:
             raise NotImplementedError("save function must be implemented after setvalue or set_from_trc")
+        from dp.view import Visualization
         vis = Visualization()
         data = np.array(list(self.joints.values()))  # [joint index][time][dim]
         vis.show3d(x=data[:, :, 0].T, y=data[:, :, 1].T, z=data[:, :, 2].T,
