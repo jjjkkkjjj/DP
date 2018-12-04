@@ -757,7 +757,7 @@ def constraint(kind='default'):
                     correspondentPoints.insert(0, [r, i])
                 elif r == 1 and i == 1:
                     correspondentPoints.insert(0, [r - 1, i - 1])
-                else:  # r > 0 and i == 1
+                elif r == 1 and i > 1:
                     tmp = np.argmin((matchingCost[r - 1, i - 1] + localCost[r, i],
                                      matchingCost[r - 1, i - 2] + 2 * localCost[r, i - 1]))
 
@@ -801,13 +801,14 @@ def constraint(kind='default'):
                         i = i - 2
                         correspondentPoints.insert(0, [r, i])
 
-                if r == 2 and i == 1:
+
+                if r == 2:
                     r = r - 2
                     i = i - 1
                     correspondentPoints.insert(0, [r, i])
                 elif r == 1 and i == 1:
                     correspondentPoints.insert(0, [r - 1, i - 1])
-                else:  # r > 0 and i == 1
+                elif r == 1 and i > 1:
                     tmp = np.argmin((matchingCost[r - 1, i - 1] + localCost[r, i],
                                      matchingCost[r - 1, i - 2] + 2 * localCost[r, i - 1]))
 
