@@ -6,11 +6,10 @@ from scipy.spatial.distance import cdist
 import sys
 sys.setrecursionlimit(10000)
 import os
-from dp.view import Visualization
 import warnings
 from matplotlib.colors import hsv_to_rgb
 
-class DP(Visualization):
+class DP():
     def __init__(self, reference=None, input=None, verbose=True, ignoreWarning=False, verboseNan=True):
         """
                         @param reference, input : type Data
@@ -18,7 +17,7 @@ class DP(Visualization):
 
                         @param correspondents : dict, keys are joint names [joint name][time, ref{0}, inp{1}]
         """
-        super(DP, self).__init__()
+        #super(DP, self).__init__()
 
         if reference is not None:
             #print(reference.__class__.__name__)
@@ -259,8 +258,9 @@ class DP(Visualization):
             raise NotImplementedError("There is no result about {0}: this method must call after calc".format(jointName))
         x = {jointName: self.correspondents[jointName][:, 0]}
         y = {jointName: self.correspondents[jointName][:, 1]}
-
-        self.show(x=x, y=y, xtime=self.reference.frame_max, ytime=self.input.frame_max,
+        from dp.view import Visualization
+        view = Visualization()
+        view.show(x=x, y=y, xtime=self.reference.frame_max, ytime=self.input.frame_max,
                   title='Matching Path', legend=True, correspondLine=correspondLine)
 
     def saveresult(self, jointName, savepath, correspondLine):
@@ -269,7 +269,9 @@ class DP(Visualization):
         x = {jointName: self.correspondents[jointName][:, 0]}
         y = {jointName: self.correspondents[jointName][:, 1]}
 
-        self.show(x=x, y=y, xtime=self.reference.frame_max, ytime=self.input.frame_max,
+        from dp.view import Visualization
+        view = Visualization()
+        view.show(x=x, y=y, xtime=self.reference.frame_max, ytime=self.input.frame_max,
                   title='Matching Path', legend=True, savepath=savepath, correspondLine=correspondLine, verbose=self.verbose)
 
     def resultData(self):
