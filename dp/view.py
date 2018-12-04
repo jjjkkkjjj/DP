@@ -339,7 +339,8 @@ class gui3d(QMainWindow):
         self.axes.set_ylim(ylim)
         self.axes.set_zlim(zlim)
         self.axes.view_init(elev=elev, azim=azim)
-
+        sys.stdout.write('\n')
+        sys.stdout.flush()
         for frame in range(self.x.shape[0]):
             percent = int((frame + 1.0) * 100 / self.x.shape[0])
             sys.stdout.write(
@@ -373,7 +374,9 @@ class gui3d(QMainWindow):
             #    break
 
         video.release()
-        print("\nsaved to {0}".format(savepath))
+        sys.stdout.write('\rsaved to {0}\n'.format(savepath))
+        sys.stdout.flush()
+
 
     def __update3d(self, frame, xrange, yrange, zrange):
         if frame != 0:
