@@ -13,7 +13,6 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import numpy as np
-import copy
 import cv2
 
 
@@ -177,9 +176,9 @@ class DPgui(QMainWindow):
             # save previous view point
             azim = self.axes.azim
             elev = self.axes.elev
-            xlim = copy.copy(list(self.axes.get_xlim()))
-            ylim = copy.copy(list(self.axes.get_ylim()))
-            zlim = copy.copy(list(self.axes.get_zlim()))
+            xlim = list(self.axes.get_xlim())
+            ylim = list(self.axes.get_ylim())
+            zlim = list(self.axes.get_zlim())
             addlim = np.max([xlim[1] - xlim[0], ylim[1] - ylim[0], zlim[1] - zlim[0]])
             xlim[1] = xlim[0] + addlim
             ylim[1] = ylim[0] + addlim
@@ -211,6 +210,11 @@ class DPgui(QMainWindow):
             self.canvas.draw()
 
     def initialDraw(self, inpData, colors):
+        if type(colors).__name__ == 'list':
+            e = colors[0]
+            tb = colors[1]
+            QMessageBox.critical(self, "Caution", "Unexpected error occured:{0}, maybe invalid combination".format(e.with_traceback(tb)))
+            return
         self.done = True
         self.colors = colors
 
@@ -226,6 +230,7 @@ class DPgui(QMainWindow):
         self.axes.clear()
         plt.title('frame number=' + str(self.frame))
         self.axes.grid(self.grid_cb.isChecked())
+        self.setViewRange()
 
         self.axes.set_xlabel('x')
         self.axes.set_ylabel('y')
@@ -240,6 +245,7 @@ class DPgui(QMainWindow):
                            [self.z[self.frame, line[0]], self.z[self.frame, line[1]]], "-", color='black')
         self.canvas.draw()
 
+        self.slider.setValue(0)
         self.draw()
 
         self.slider.setEnabled(True)
@@ -249,6 +255,21 @@ class DPgui(QMainWindow):
         self.groupzrange.setEnabled(True)
         self.leftdockwidget.buttonPlay.setEnabled(True)
 
+    def setViewRange(self):
+        azim = self.axes.azim
+        elev = self.axes.elev
+        xlim = list((np.nanmin(self.x), np.nanmax(self.x)))
+        ylim = list((np.nanmin(self.y), np.nanmax(self.y)))
+        zlim = list((np.nanmin(self.z), np.nanmax(self.z)))
+        addlim = np.max([xlim[1] - xlim[0], ylim[1] - ylim[0], zlim[1] - zlim[0]])
+        xlim[1] = xlim[0] + addlim
+        ylim[1] = ylim[0] + addlim
+        zlim[1] = zlim[0] + addlim
+
+        self.axes.set_xlim(xlim)
+        self.axes.set_ylim(ylim)
+        self.axes.set_zlim(zlim)
+        self.axes.view_init(elev=elev, azim=azim)
 
     # event
     def onrelease(self, event):
@@ -458,7 +479,7 @@ class LeftDockWidget(QWidget):
             refPath, __ = QFileDialog.getOpenFileName(self, 'load file', basedir, filters)
             if refPath != "":
                 self.refPath = refPath
-                self.labelRealRefPath.setText(self.refPath)
+                self.labelRealRefPath.setText(os.path.basename(self.refPath))
                 exec('self.parent.prevDir{0} = os.path.dirname(self.refPath)'.format(self.comboBoxSkeltonType.currentText()))
             else:
                 self.refPath = None
@@ -469,7 +490,7 @@ class LeftDockWidget(QWidget):
             inpPath, __ = QFileDialog.getOpenFileName(self, 'load file', basedir, filters)
             if inpPath != "":
                 self.inpPath = inpPath
-                self.labelRealInpPath.setText(self.inpPath)
+                self.labelRealInpPath.setText(os.path.basename(self.inpPath))
                 exec('self.parent.prevDir{0} = os.path.dirname(self.inpPath)'.format(self.comboBoxSkeltonType.currentText()))
             else:
                 self.inpPath = None
@@ -511,12 +532,19 @@ class LeftDockWidget(QWidget):
                 return
 
         try:
+            loadingDialog = LoadingDialog(inpData, refData, fps=int(self.lineeditFps.text()), maximumGapTime=float(self.lineEditMaxGapTime.text()), parent=self)
+            loadingDialog.setWindowModality(Qt.ApplicationModal)
+            loadingDialog.show()
+            #colors = loadingDialog.start(inpData, refData, fps=int(self.lineeditFps.text()), maximumGapTime=float(self.lineEditMaxGapTime.text()))
+            """
+            sys.stdout = Logger(self)
+            
             DP_ = dp.DP(refData, inpData, verbose=True, ignoreWarning=True, verboseNan=True)
             colors = DP_.resultVisualization(fps=int(self.lineeditFps.text()),
                                          maximumGapTime=float(self.lineEditMaxGapTime.text()))
 
             self.parent.initialDraw(inpData, colors)
-
+            """
         except Exception as e:
             tb = sys.exc_info()[2]
             QMessageBox.critical(self, "Caution", "Unexpected error occured:{0}".format(e.with_traceback(tb)))
@@ -525,7 +553,6 @@ class LeftDockWidget(QWidget):
         self.buttonPlay.setEnabled(False)
         self.buttonPause.setEnabled(True)
         self.timer.start(int(1000.0 / int(self.lineeditFps.text())))  # ms
-
 
     def pause(self):
         self.buttonPlay.setEnabled(True)
@@ -539,6 +566,88 @@ class LeftDockWidget(QWidget):
             self.parent.draw()
         else:
             self.pause()
+
+class Calculator(QThread):
+    finSignal = pyqtSignal(object)
+
+    def __init__(self, parent=None):
+        QThread.__init__(self, parent)
+        self.parent = parent
+
+
+    def run(self):
+        try:
+            sys.stdout = Logger(self.parent)
+            DP_ = dp.DP(self.parent.refData, self.parent.inpData, verbose=True, ignoreWarning=True, verboseNan=True)
+            colors = DP_.resultVisualization(fps=self.parent.fps, maximumGapTime=self.parent.maximumGapTime)
+
+            sys.stdout = sys.__stdout__
+
+            self.finSignal.emit(colors)
+        except Exception as e:
+            tb = sys.exc_info()[2]
+            self.finSignal.emit([e, tb])
+
+class Logger(object):
+
+    def __init__(self, parent):
+        self.parent = parent
+
+
+    def write(self, log):
+        self.parent.textEdit.setText(log)
+        """
+        cursor = self.parent.textEdit.textCursor()
+        cursor.movePosition(QTextCursor.End)
+        cursor.insertText(log)
+        self.parent.textEdit.setTextCursor(cursor)
+        self.parent.textEdit.ensureCursorVisible()
+        """
+
+    def flush(self):
+        pass
+
+class LoadingDialog(QMainWindow):
+    def __init__(self, inpData, refData, fps, maximumGapTime, parent=None):
+        QMainWindow.__init__(self, parent)
+        self.parent = parent
+
+        self.inpData = inpData
+        self.refData = refData
+        self.fps = fps
+        self.maximumGapTime = maximumGapTime
+
+        self.initUI()
+
+    def initUI(self):
+        self.mainWidget = QWidget(self)
+
+        hbox = QHBoxLayout()
+
+        self.movie_screen = QLabel()
+        self.movie = QMovie("calculating.gif", QByteArray(), self)
+        self.movie.setCacheMode(QMovie.CacheAll)
+        self.movie.setSpeed(100)
+        self.movie_screen.setMovie(self.movie)
+        self.movie.start()
+        hbox.addWidget(self.movie_screen)
+
+        #self.textEdit = QTextEdit()
+        self.textEdit = QLabel()
+        hbox.addWidget(self.textEdit)
+
+        self.mainWidget.setLayout(hbox)
+        self.setCentralWidget(self.mainWidget)
+
+        self.calculator = Calculator(self)
+        self.calculator.finSignal.connect(self.finished)
+        self.calculator.start()
+
+
+    def finished(self, colors):
+        self.parent.parent.initialDraw(self.inpData, colors)
+        self.close()
+
 
 import csv
 
