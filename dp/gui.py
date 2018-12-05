@@ -13,6 +13,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import numpy as np
+import copy
 import cv2
 
 
@@ -25,9 +26,18 @@ class DPgui(QMainWindow):
 
     def setConfig(self):
         # initialixzation
-        self.done = False
         self.prevDirVolleyball = None
         self.prevDirBaseball = None
+
+        self.done = False
+        self.colors = None
+        self.frame = 0
+        self.x = None
+        self.y = None
+        self.z = None
+        self.joints = None
+        self.lines = None
+        self.frame_max = 0
 
         if not os.path.exists('./__config__'):
             os.mkdir('__config__')
@@ -133,8 +143,17 @@ class DPgui(QMainWindow):
             hbox.addWidget(w)
             hbox.setAlignment(w, Qt.AlignVCenter)
 
+        #
+        # slider
+        #
+        self.slider = QSlider(Qt.Horizontal)
+        self.slider.setEnabled(False)
+        self.slider.valueChanged.connect(self.sliderValueChanged)
+        self.slider.setMaximum(0)
+        self.slider.setMinimum(0)
+
         vbox = QVBoxLayout()
-        self.setslider(vbox)
+        vbox.addWidget(self.slider)
         vbox.addWidget(self.canvas)
         vbox.addWidget(self.mpl_toolbar)
         vbox.addLayout(hbox)
@@ -158,9 +177,9 @@ class DPgui(QMainWindow):
             # save previous view point
             azim = self.axes.azim
             elev = self.axes.elev
-            xlim = self.axes.get_xlim().copy()
-            ylim = self.axes.get_ylim().copy()
-            zlim = self.axes.get_zlim().copy()
+            xlim = copy.copy(list(self.axes.get_xlim()))
+            ylim = copy.copy(list(self.axes.get_ylim()))
+            zlim = copy.copy(list(self.axes.get_zlim()))
             addlim = np.max([xlim[1] - xlim[0], ylim[1] - ylim[0], zlim[1] - zlim[0]])
             xlim[1] = xlim[0] + addlim
             ylim[1] = ylim[0] + addlim
@@ -181,6 +200,55 @@ class DPgui(QMainWindow):
             self.axes.set_ylim(ylim)
             self.axes.set_zlim(zlim)
             self.axes.view_init(elev=elev, azim=azim)
+
+            self.scatter = [
+                self.axes.scatter3D(self.x[self.frame, i], self.y[self.frame, i], self.z[self.frame, i], ".",
+                                    color=self.colors[self.frame, i]) for i in range(len(self.joints))]
+            for line in self.lines:
+                self.axes.plot([self.x[self.frame, line[0]], self.x[self.frame, line[1]]],
+                                [self.y[self.frame, line[0]], self.y[self.frame, line[1]]],
+                                [self.z[self.frame, line[0]], self.z[self.frame, line[1]]], "-", color='black')
+            self.canvas.draw()
+
+    def initialDraw(self, inpData, colors):
+        self.done = True
+        self.colors = colors
+
+        data = np.array(list(inpData.joints.values()))  # [joint index][time][dim]
+        self.x = data[:, :, 0].T
+        self.y = data[:, :, 1].T
+        self.z = data[:, :, 2].T
+        self.joints = inpData.joints
+        self.lines = inpData.lines
+        self.frame_max = self.x.shape[0]
+        # clear the axes and redraw the plot anew
+        #
+        self.axes.clear()
+        plt.title('frame number=' + str(self.frame))
+        self.axes.grid(self.grid_cb.isChecked())
+
+        self.axes.set_xlabel('x')
+        self.axes.set_ylabel('y')
+        self.axes.set_zlabel('z')
+
+        self.scatter = [
+            self.axes.scatter3D(self.x[self.frame, i], self.y[self.frame, i], self.z[self.frame, i], ".",
+                                color=self.colors[self.frame, i]) for i in range(len(self.joints))]
+        for line in self.lines:
+            self.axes.plot([self.x[self.frame, line[0]], self.x[self.frame, line[1]]],
+                           [self.y[self.frame, line[0]], self.y[self.frame, line[1]]],
+                           [self.z[self.frame, line[0]], self.z[self.frame, line[1]]], "-", color='black')
+        self.canvas.draw()
+
+        self.draw()
+
+        self.slider.setEnabled(True)
+        self.slider.setMaximum(self.frame_max - 1)
+        self.groupxrange.setEnabled(True)
+        self.groupyrange.setEnabled(True)
+        self.groupzrange.setEnabled(True)
+        self.leftdockwidget.buttonPlay.setEnabled(True)
+
 
     # event
     def onrelease(self, event):
@@ -244,23 +312,17 @@ class DPgui(QMainWindow):
 
     def rangeChanger(self, coordinates, plus):
         ticks = eval("self.axes.get_{0}ticks()".format(coordinates))
+
         if plus:
             width = ticks[1] - ticks[0]
         else:
             width = ticks[0] - ticks[1]
 
-        lim = eval("self.axes.get_{0}lim()".format(coordinates))
+        lim = list(eval("self.axes.get_{0}lim()".format(coordinates)))
         lim += width
+        exec ("self.axes.set_{0}lim(lim)".format(coordinates))
 
         self.draw()
-
-    def setslider(self, vbox):
-        #
-        # slider
-        #
-        self.slider = QSlider(Qt.Horizontal)
-        self.slider.setEnabled(False)
-        self.slider.valueChanged.connect(self.sliderValueChanged)
 
     def sliderValueChanged(self):
         self.frame = self.slider.value()
@@ -375,6 +437,9 @@ class LeftDockWidget(QWidget):
 
         self.setLayout(vbox)
 
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.updateVideo)
+
     # event
     def openClicked(self, ref):
         basedir = ''
@@ -445,57 +510,35 @@ class LeftDockWidget(QWidget):
                 QMessageBox.critical(self, "Caution", "{0} cannot be loaded".format(self.inpPath))
                 return
 
-        waitingview = waitingView(refData, inpData, self)
-        waitingview.setWindowModality(Qt.ApplicationModal)
-        waitingview.show()
+        try:
+            DP_ = dp.DP(refData, inpData, verbose=True, ignoreWarning=True, verboseNan=True)
+            colors = DP_.resultVisualization(fps=int(self.lineeditFps.text()),
+                                         maximumGapTime=float(self.lineEditMaxGapTime.text()))
 
+            self.parent.initialDraw(inpData, colors)
+
+        except Exception as e:
+            tb = sys.exc_info()[2]
+            QMessageBox.critical(self, "Caution", "Unexpected error occured:{0}".format(e.with_traceback(tb)))
 
     def play(self):
-        pass
+        self.buttonPlay.setEnabled(False)
+        self.buttonPause.setEnabled(True)
+        self.timer.start(int(1000.0 / int(self.lineeditFps.text())))  # ms
+
 
     def pause(self):
-        pass
+        self.buttonPlay.setEnabled(True)
+        self.buttonPause.setEnabled(False)
+        self.timer.stop()
 
-class waitingView(QMainWindow):
-    def __init__(self, refData, inpData, parent=None):
-        QMainWindow.__init__(self, parent)
-        self.parent = parent
-
-        self.refData = refData
-        self.inpData = inpData
-        self.initUI()
-
-    def initUI(self):
-        hbox = QHBoxLayout()
-        self.labelMovie = QLabel()
-        movie = QMovie('./calculating.gif')
-        self.labelMovie.setMovie(movie)
-        movie.start()
-        hbox.addWidget(self.labelMovie)
-
-        self.textEditOutputDP = QTextEdit()
-        hbox.addWidget(self.textEditOutputDP)
-        # QProcess object for external app
-        self.process = QProcess(self)
-        # QProcess emits `readyRead` when there is data to be read
-        self.process.readyRead.connect(self.dataReady)
-
-        self.buttonCancel = QPushButton("Cancel")
-        hbox.addWidget(self.buttonCancel)
-
-        self.setLayout(hbox)
-
-    def calc(self):
-        self.process.start()
-        DP_ = dp.DP(self.refData, self.inpData, verbose=True, ignoreWarning=True, verboseNan=False)
-        colors = DP_.resultVisualization(fps=int(self.parent.lineeditFps.text()),
-                                         maximumGapTime=float(self.parent.lineEditMaxGapTime.text()))
-
-    def dataReady(self):
-        cursor = self.textEditOutputDP.textCursor()
-        cursor.movePosition(cursor.End)
-        cursor.insertText(str(self.process.readAll()))
-        self.textEditOutputDP.ensureCursorVisible()
+    def updateVideo(self):
+        if self.parent.frame < self.parent.frame_max:
+            self.parent.frame += 1
+            self.parent.sliderSetValue(self.parent.frame)
+            self.parent.draw()
+        else:
+            self.pause()
 
 import csv
 
