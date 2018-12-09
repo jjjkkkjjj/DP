@@ -160,6 +160,29 @@ class DPgui(QMainWindow):
         self.main_frame.setLayout(vbox)
         self.setCentralWidget(self.main_frame)
 
+    # data
+    def reset(self):
+        self.done = False
+        self.colors = None
+
+        self.x = None
+        self.y = None
+        self.z = None
+        self.joints = None
+        self.lines = None
+        self.frame_max = 0
+
+        self.axes.clear()
+
+        self.slider.setEnabled(False)
+        self.slider.setMaximum(0)
+        self.groupxrange.setEnabled(False)
+        self.groupyrange.setEnabled(False)
+        self.groupzrange.setEnabled(False)
+        self.leftdockwidget.buttonPlay.setEnabled(False)
+        self.leftdockwidget.buttonPause.setEnabled(False)
+
+
     # left dock
     def setleftDock(self):
         self.leftdock = QDockWidget(self)
@@ -531,6 +554,8 @@ class LeftDockWidget(QWidget):
                 QMessageBox.critical(self, "Caution", "{0} cannot be loaded".format(self.inpPath))
                 return
 
+        self.parent.reset()
+
         try:
             loadingDialog = LoadingDialog(inpData, refData, fps=int(self.lineeditFps.text()), maximumGapTime=float(self.lineEditMaxGapTime.text()), parent=self)
             loadingDialog.setWindowModality(Qt.ApplicationModal)
@@ -566,6 +591,7 @@ class LeftDockWidget(QWidget):
             self.parent.draw()
         else:
             self.pause()
+
 
 class Calculator(QThread):
     finSignal = pyqtSignal(object)
