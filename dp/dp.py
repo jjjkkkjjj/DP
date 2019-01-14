@@ -79,7 +79,7 @@ class DP(DPBase):
             if myLocalCosts is None:
                 localCost = cdist(refData, inpData, 'euclidean')
             else:
-                if not isinstance(myLocalCosts, list):
+                if not isinstance(myLocalCosts, dict):
                     raise ValueError("myLocalCosts must be dict")
                 localCost = myLocalCosts[joint]
 
