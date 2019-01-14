@@ -216,7 +216,8 @@ pip-selfcheck.json
 # ignore specific directories or files
 /venv
 
-/dp/__config__/*
+/gui/__config__/*
+/gui/*.app
 
 /baseball/result/*
 !.gitkeep

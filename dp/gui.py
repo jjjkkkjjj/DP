@@ -1,4 +1,6 @@
-import dp
+from dp.dp import DP
+from dp.data import Data
+from dp.utils import csvReader
 import sys
 import os
 import platform
@@ -541,13 +543,13 @@ class LeftDockWidget(QWidget):
                 QMessageBox.critical(self, "Caution", "{0} cannot be loaded".format(self.inpPath))
                 return
         else:
-            refData = dp.Data()
+            refData = Data()
             try:
                 refData.set_from_trc(self.refPath)
             except:
                 QMessageBox.critical(self, "Caution", "{0} cannot be loaded".format(self.refPath))
                 return
-            inpData = dp.Data()
+            inpData = Data()
             try:
                 inpData.set_from_trc(self.inpPath)
             except:
@@ -604,7 +606,7 @@ class Calculator(QThread):
     def run(self):
         try:
             sys.stdout = Logger(self.parent)
-            DP_ = dp.DP(self.parent.refData, self.parent.inpData, verbose=True, ignoreWarning=True, verboseNan=True)
+            DP_ = DP(self.parent.refData, self.parent.inpData, verbose=True, ignoreWarning=True, verboseNan=True)
             colors = DP_.resultVisualization(fps=self.parent.fps, maximumGapTime=self.parent.maximumGapTime)
 
             sys.stdout = sys.__stdout__
@@ -651,7 +653,8 @@ class LoadingDialog(QMainWindow):
         hbox = QHBoxLayout()
 
         self.movie_screen = QLabel()
-        self.movie = QMovie("calculating.gif", QByteArray(), self)
+        gifpath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "calculating.gif")
+        self.movie = QMovie(gifpath, QByteArray(), self)
         self.movie.setCacheMode(QMovie.CacheAll)
         self.movie.setSpeed(100)
         self.movie_screen.setMovie(self.movie)
@@ -674,54 +677,3 @@ class LoadingDialog(QMainWindow):
         self.parent.parent.initialDraw(self.inpData, colors)
         self.close()
 
-
-import csv
-
-def csvReader(csvfile, dir):
-    try:
-        tmplists = []
-
-        with open(os.path.join(dir, csvfile), "r") as f:
-            reader = csv.reader(f)
-            for row in reader:
-                tmplists.append(row)
-
-        time = len(tmplists) - 7
-        data = dp.Data(interpolate='linear')
-
-        jointNames = []
-        X = []
-        Y = []
-        Z = []
-
-        index = 2
-        while index < len(tmplists[6]):
-            if tmplists[5][index] == 'Position':
-                if tmplists[2][index] == 'Bone Marker' and tmplists[3][index].find('Unlabeled') < 0:
-                    x = np.array(
-                        [tmplists[i][index] if tmplists[i][index] != '' else np.nan for i in
-                         range(7, len(tmplists))],
-                        dtype='float')
-                    y = np.array([tmplists[i][index + 1] if tmplists[i][index + 1] != '' else np.nan for i in
-                                  range(7, len(tmplists))], dtype='float')
-                    z = np.array([tmplists[i][index + 2] if tmplists[i][index + 2] != '' else np.nan for i in
-                                  range(7, len(tmplists))], dtype='float')
-                    X.append(x)
-                    Y.append(y)
-                    Z.append(z)
-                    jointNames.append(tmplists[3][index])
-                index += 3
-            elif tmplists[5][index] == 'Rotation':
-                index += 4
-
-        data.setvalues(csvfile, np.array(X), np.array(Y), np.array(Z), jointNames, dir=dir, lines='baseball')
-        return data
-    except:
-        return None
-
-
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    gui = DPgui()
-    gui.show()
-    sys.exit(app.exec_())

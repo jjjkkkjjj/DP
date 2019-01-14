@@ -72,7 +72,7 @@ def csvReader(csvfile, dir):
 
     tmplists = []
 
-    with open(dir + csvfile, "r") as f:
+    with open(os.path.join(dir, csvfile), "r") as f:
         reader = csv.reader(f)
         for row in reader:
             tmplists.append(row)
