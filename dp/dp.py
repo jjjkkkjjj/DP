@@ -4,9 +4,11 @@ import sys
 sys.setrecursionlimit(10000)
 import warnings
 from matplotlib.colors import hsv_to_rgb
+from .data import Data
+from .base import DPBase
 from .constraint import constraint
 
-class DP():
+class DP(DPBase):
     def __init__(self, reference=None, input=None, verbose=True, ignoreWarning=False, verboseNan=True):
         """
                         @param reference, input : type Data
@@ -14,16 +16,16 @@ class DP():
 
                         @param correspondents : dict, keys are joint names [joint name][time, ref{0}, inp{1}]
         """
-        #super(DP, self).__init__()
+        super().__init__(verbose=verbose, verboseNan=verboseNan, ignoreWarning=ignoreWarning)
 
         if reference is not None:
             #print(reference.__class__.__name__)
-            if reference.__class__.__name__ == 'Data':
+            if isinstance(reference, Data):
                 self.reference = reference
             else:
                 raise ValueError("you must set Data class object as reference")
 
-            if reference.__class__.__name__ == 'Data':
+            if isinstance(input, Data):
                 self.input = input
             else:
                 raise ValueError("you must set Data class object as input")
@@ -42,7 +44,7 @@ class DP():
     def calc(self, jointNames=None, showresult=False, resultdir="", myLocalCosts=None, myMatchingCostFunc=None, correspondLine=True, returnMatchingCosts=False):
         if jointNames is None:
             jointNames = list(self.input.joints.keys()) # corresponds to input
-        elif type(jointNames).__name__ != 'list':
+        elif not isinstance(jointNames, list):
             raise ValueError("argument \'jointsNames\'[type:{0}] must be list or None which means calculation for all joints".format(type(jointNames).__name__))
 
         matchingCostFunc = None
@@ -53,7 +55,7 @@ class DP():
             matchingCostFunc = myMatchingCostFunc['matchingCost']
             backTrackFunc = myMatchingCostFunc['backTrack']
 
-        elif type(myMatchingCostFunc).__name__ != 'dict':
+        elif not isinstance(myMatchingCostFunc, dict):
             raise ValueError('myMatchingCostFunc must be dict, and one\'s key must have [\'matchingCost\',\'backTrack\']')
         else:
             try:
@@ -77,16 +79,13 @@ class DP():
             if myLocalCosts is None:
                 localCost = cdist(refData, inpData, 'euclidean')
             else:
-                if type(myLocalCosts).__name__ != 'dict':
+                if not isinstance(myLocalCosts, list):
                     raise ValueError("myLocalCosts must be dict")
                 localCost = myLocalCosts[joint]
-            try:
-                matchingCost = matchingCostFunc(localCost)
-            except:
-                if self.verbose:
-                    sys.stdout.write("\rWarning:{0}:{1}\nskip...\n".format(joint, sys.exc_info()))
-                    sys.stdout.flush()
-                    continue
+
+            correspondentPoints, matchingCost = super().calc(localCost, myMatchingCostFunc, joint)
+            if matchingCost is None:
+                continue
 
             if returnMatchingCosts:
                 try:
@@ -96,31 +95,18 @@ class DP():
                 except ValueError:
                     continue
 
-            # back track
-            try:
-                correspondentPoints = backTrackFunc(matchingCost=matchingCost, localCost=localCost, inputFinFrameBackTracked=np.nanargmin(matchingCost[self.reference.frame_max - 1]))
+            self.correspondents[joint] = np.array(correspondentPoints)
+            self.totalCosts[joint] = np.nanmin(matchingCost[self.reference.frame_max - 1]) / self.reference.frame_max
 
-                self.correspondents[joint] = np.array(correspondentPoints)
-                self.totalCosts[joint] = np.nanmin(
-                    matchingCost[self.reference.frame_max - 1]) / self.reference.frame_max
-
-                if self.verbose:
-                    sys.stdout.write("\r{0} is calculating...finished\n".format(joint))
-                    sys.stdout.flush()
-                if showresult:
-                    self.showresult(joint, correspondLine)
-                if resultdir != "":
-                    self.saveresult(joint,
-                                    savepath=resultdir + "/{0}-R_{1}-I_{2}.png".format(joint, self.reference.name,
-                                                                                       self.input.name),
+            if self.verbose:
+                sys.stdout.write("\r{0} is calculating...finished\n".format(joint))
+                sys.stdout.flush()
+            if showresult:
+                self.showresult(joint, correspondLine)
+            if resultdir != "":
+                self.saveresult(joint, savepath=resultdir + "/{0}-R_{1}-I_{2}.png".format(joint, self.reference.name, self.input.name),
                                     correspondLine=correspondLine)
 
-            except ValueError:
-                #if self.verbose:
-                if self.verboseNan:
-                    sys.stdout.write("\rWarning:{0}'s all matching cost has nan\nskip...\n".format(joint))
-                    sys.stdout.flush()
-                continue
 
         if returnMatchingCosts:
             return matchingCosts
@@ -156,7 +142,7 @@ class DP():
     def calcCorrespondInitial(self, jointNames=None, showresult=False, myMatchingCostFunc=None, resultdir="", correspondLine=True):
         if jointNames is None:
             jointNames = list(self.input.joints.keys()) # corresponds to input
-        elif type(jointNames).__name__ != 'list':
+        elif not isinstance(jointNames, list):
             raise ValueError("argument \'jointsNames\'[type:{0}] must be list or None which means calculation for all joints".format(type(jointNames).__name__))
         elif len(jointNames) == 1:
             print("Warning: jointNames\' length was 1, this result will be same to calc")
@@ -168,7 +154,7 @@ class DP():
         if myMatchingCostFunc is None:
             backTrackFunc = constraint('default')['backTrack']
 
-        elif type(myMatchingCostFunc).__name__ != 'dict':
+        elif not isinstance(myMatchingCostFunc, dict):
             raise ValueError(
                 'myMatchingCostFunc must be dict, and one\'s key must have [\'matchingCost\',\'backTrack\']')
         else:

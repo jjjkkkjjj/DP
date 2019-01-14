@@ -1,19 +1,14 @@
 from .base import DPBase
+from .dp import DP
 from scipy.spatial.distance import cdist
 import numpy as np
 from .data import Data
 
-class ContextDP(DPBase):
-    def __init__(self, reference, input, verbose=False, verboseNan=False, ignoreWarning=True):
-        super().__init__(verbose=verbose, verboseNan=verboseNan, ignoreWarning=ignoreWarning)
+class ContextDP(DP):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
         self.contexts = None
-        self.correspondents = None
-        self.totalCosts = None
-        if not isinstance(reference, Data) or not isinstance(input, Data):
-            raise ValueError('reference and input must be Data')
-        self.reference = reference
-        self.input = input
 
     def sync(self, contexts, myMatchingCostFunc=None, myLocalCosts=None, returnMatchingCosts=False):
         self.contexts = contexts
@@ -36,8 +31,8 @@ class ContextDP(DPBase):
                 localCost = myLocalCosts[contextKey]
             else:
                 raise ValueError('myLocalCosts must be list')
-
-            self.correspondents[contextKey], matchingCosts[contextKey] = super().calc(localCost, myMatchingCostFunc)
+            # call method in super of super class which is DPBase
+            self.correspondents[contextKey], matchingCosts[contextKey] = super(DP, self).calc(localCost, myMatchingCostFunc)
             self.correspondents[contextKey] = np.array(self.correspondents[contextKey])
         if returnMatchingCosts:
             return matchingCosts
@@ -92,7 +87,7 @@ class ContextDP(DPBase):
             self.correspondents[joint] = correspondentPoints
             self.totalCosts[joint] = np.nanmin(matchingCost[self.reference.frame_max - 1]) / self.reference.frame_max
 
-    
+
     def resultData(self):
         if len(self.correspondents) == 0:
             raise NotImplementedError("There is no result: this method must call after calc")

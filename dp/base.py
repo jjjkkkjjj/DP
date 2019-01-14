@@ -3,7 +3,7 @@ import sys
 import warnings
 from .constraint import constraint
 
-class DPBase():
+class DPBase(object):
     def  __init__(self, verbose=False, verboseNan=False, ignoreWarning=True):
         self.verbose = verbose
         self.verboseNan = verboseNan
@@ -12,12 +12,12 @@ class DPBase():
             np.seterr(invalid='ignore')
             warnings.filterwarnings("ignore")
 
-    def calc(self, localCost, myMatchingCostFunc=None):
+    def calc(self, localCost, myMatchingCostFunc=None, name=''):
         if myMatchingCostFunc is None:
             myMatchingCostFunc = constraint('default')
             matchingCostFunc = myMatchingCostFunc['matchingCost']
             backTrackFunc = myMatchingCostFunc['backTrack']
-        elif not isinstance(myMatchingCostFunc, dict):
+        elif isinstance(myMatchingCostFunc, dict):
             try:
                 matchingCostFunc = myMatchingCostFunc['matchingCost']
                 backTrackFunc = myMatchingCostFunc['backTrack']
@@ -31,7 +31,7 @@ class DPBase():
             matchingCost = matchingCostFunc(localCost)
         except:
             if self.verbose:
-                sys.stdout.write("\rWarning:{0}\nskip...\n".format(sys.exc_info()))
+                sys.stdout.write("\rWarning:{0}:{1}\nskip...\n".format(name, sys.exc_info()))
                 sys.stdout.flush()
                 return None, None
 
@@ -42,9 +42,9 @@ class DPBase():
         except ValueError:
             # if self.verbose:
             if self.verboseNan:
-                sys.stdout.write("\rWarning:all matching cost has nan\nskip...\n")
+                sys.stdout.write("\rWarning:{0}\'s all matching cost has nan\nskip...\n".format(name))
                 sys.stdout.flush()
-            return None, None
+            return None, matchingCost
 
         return correspondentPoints, matchingCost
 
