@@ -1,6 +1,8 @@
-from dp.dp import DP, Data, referenceReader
+from dp.dp import DP
 from dp.view import Visualization
 from dp.calccorrcoef import corrcoefMean
+from dp.utils import referenceReader
+from dp.data import Data
 import os
 import sys
 

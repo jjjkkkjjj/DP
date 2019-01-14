@@ -1,6 +1,5 @@
 import csv
-from dp.dp import referenceDetector
-from csvReader import csvReader
+from dp.utils import referenceDetector, csvReader
 
 def main():
     with open('pitch-type.csv', 'r') as f:

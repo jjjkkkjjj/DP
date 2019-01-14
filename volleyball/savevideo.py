@@ -1,4 +1,4 @@
-from dp.dp import Data
+from dp.data import Data
 
 
 for i in range(1, 7 + 1):

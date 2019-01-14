@@ -1,6 +1,7 @@
 import csv
-from dp.dp import DP, referenceReader, Data
-from csvReader import csvReader
+from dp.dp import DP
+from dp.data import Data
+from dp.utils import referenceReader, csvReader
 import numpy as np
 from dp.view import Visualization
 from dp.calccorrcoef import corrcoefMean

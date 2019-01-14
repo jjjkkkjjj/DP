@@ -1,4 +1,6 @@
-from dp.dp import DP, Data, referenceDetector
+from dp.dp import DP
+from dp.data import Data
+from dp.utils import referenceDetector
 
 Datalists = []
 for i in range(1, 7 + 1):

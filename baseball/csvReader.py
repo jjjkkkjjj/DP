@@ -1,6 +1,8 @@
 import csv
-from dp.dp import Data
+from dp.data import Data
 import numpy as np
+
+
 def csvReader(csvfile, dir):
 
     tmplists = []

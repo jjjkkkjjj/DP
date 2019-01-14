@@ -1,6 +1,7 @@
 import csv
-from csvReader import csvReader
-from dp.dp import DP, referenceReader, Data
+from dp.dp import DP
+from dp.utils import referenceReader, csvReader
+from dp.data import Data
 import numpy as np
 from dp.view import Visualization
 
