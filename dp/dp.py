@@ -47,22 +47,7 @@ class DP(DPBase):
         elif not isinstance(jointNames, list):
             raise ValueError("argument \'jointsNames\'[type:{0}] must be list or None which means calculation for all joints".format(type(jointNames).__name__))
 
-        matchingCostFunc = None
-        backTrackFunc = None
         matchingCosts = {}
-        if myMatchingCostFunc is None:
-            myMatchingCostFunc = constraint('default')
-            matchingCostFunc = myMatchingCostFunc['matchingCost']
-            backTrackFunc = myMatchingCostFunc['backTrack']
-
-        elif not isinstance(myMatchingCostFunc, dict):
-            raise ValueError('myMatchingCostFunc must be dict, and one\'s key must have [\'matchingCost\',\'backTrack\']')
-        else:
-            try:
-                matchingCostFunc = myMatchingCostFunc['matchingCost']
-                backTrackFunc = myMatchingCostFunc['backTrack']
-            except KeyError:
-                raise KeyError('myMatchingCostFunc must be dict, and one\'s key must have [\'matchingCost\',\'backTrack\']')
 
         for i, joint in enumerate(jointNames):
             if not (joint in self.reference.joints.keys() and joint in self.input.joints.keys()):
@@ -149,21 +134,6 @@ class DP(DPBase):
             self.calc(jointNames=jointNames, showresult=showresult, resultdir=resultdir, correspondLine=correspondLine)
             return
 
-        backTrackFunc = None
-        matchingCosts = {}
-        if myMatchingCostFunc is None:
-            backTrackFunc = constraint('default')['backTrack']
-
-        elif not isinstance(myMatchingCostFunc, dict):
-            raise ValueError(
-                'myMatchingCostFunc must be dict, and one\'s key must have [\'matchingCost\',\'backTrack\']')
-        else:
-            try:
-                backTrackFunc = myMatchingCostFunc['backTrack']
-            except KeyError:
-                raise KeyError(
-                    'myMatchingCostFunc must be dict, and one\'s key must have [\'matchingCost\',\'backTrack\']')
-
         myLocalCosts = {}
         for joint in jointNames:
             if not (joint in self.reference.joints.keys() and joint in self.input.joints.keys()):
@@ -196,7 +166,7 @@ class DP(DPBase):
             print("\ninitial frame is {0}\nback tracking now...".format(self.input.frame_max - initialFrameReversed - 1))
 
         for joint in matchingCosts.keys():
-            correspondentPoints = np.array(backTrackFunc(matchingCost=matchingCosts[joint], inputFinFrameBackTracked=initialFrameReversed, localCost=myLocalCosts[joint]))
+            correspondentPoints = np.array(myMatchingCostFunc['backTrack'](matchingCost=matchingCosts[joint], inputFinFrameBackTracked=initialFrameReversed, localCost=myLocalCosts[joint]))
             # correspondentPoints[reference, input]
             # reverse ref
             correspondentPoints[:, 0] = self.reference.frame_max - 1 - correspondentPoints[::-1, 0]
@@ -342,7 +312,4 @@ class DP(DPBase):
         colors = np.array(colors).transpose((1, 0, 2))
 
         return colors
-
-
-
 

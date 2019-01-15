@@ -13,19 +13,7 @@ class DPBase(object):
             warnings.filterwarnings("ignore")
 
     def calc(self, localCost, myMatchingCostFunc=None, name=''):
-        if myMatchingCostFunc is None:
-            myMatchingCostFunc = constraint('default')
-            matchingCostFunc = myMatchingCostFunc['matchingCost']
-            backTrackFunc = myMatchingCostFunc['backTrack']
-        elif isinstance(myMatchingCostFunc, dict):
-            try:
-                matchingCostFunc = myMatchingCostFunc['matchingCost']
-                backTrackFunc = myMatchingCostFunc['backTrack']
-            except KeyError:
-                raise KeyError('myMatchingCostFunc must be dict, and one\'s key must have [\'matchingCost\',\'backTrack\']')
-        else:
-            raise ValueError('myMatchingCostFunc must be dict, and one\'s key must have [\'matchingCost\',\'backTrack\']')
-
+        matchingCostFunc, backTrackFunc = check_myMatchingCostFunc(myMatchingCostFunc)
 
         try:
             matchingCost = matchingCostFunc(localCost)
@@ -52,3 +40,15 @@ class DPBase(object):
 
     def save(self, **kwargs):
         pass
+
+def check_myMatchingCostFunc(myMatchingCostFunc):
+    # return matchingCostFunc, backTrackFunc
+    if myMatchingCostFunc is not None and not isinstance(myMatchingCostFunc, dict):
+        raise ValueError('myMatchingCostFunc must be dict, and one\'s key must have [\'matchingCost\',\'backTrack\']')
+    else:
+        if myMatchingCostFunc is None:
+            myMatchingCostFunc = constraint('default')
+        try:
+            return myMatchingCostFunc['matchingCost'], myMatchingCostFunc['backTrack']
+        except KeyError:
+            raise KeyError('myMatchingCostFunc must be dict, and one\'s key must have [\'matchingCost\',\'backTrack\']')
