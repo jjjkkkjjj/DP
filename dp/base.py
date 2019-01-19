@@ -13,6 +13,10 @@ class DPBase(object):
             warnings.filterwarnings("ignore")
 
     def calc(self, localCost, myMatchingCostFunc=None, name=''):
+        if self.verbose:
+            sys.stdout.write("\r{0} is calculating...".format(name))
+            sys.stdout.flush()
+
         matchingCostFunc, backTrackFunc = check_myMatchingCostFunc(myMatchingCostFunc)
 
         try:
@@ -33,6 +37,10 @@ class DPBase(object):
                 sys.stdout.write("\rWarning:{0}\'s all matching cost has nan\nskip...\n".format(name))
                 sys.stdout.flush()
             return None, matchingCost
+
+        if self.verbose:
+            sys.stdout.write("\r{0} is calculating...finished\n".format(name))
+            sys.stdout.flush()
 
         return correspondentPoints, matchingCost
 

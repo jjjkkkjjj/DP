@@ -54,10 +54,6 @@ class DP(DPBase):
                 print("\nWarning: {0} is not valid joint name".format(joint))
                 continue
 
-            if self.verbose:
-                sys.stdout.write("\r{0} is calculating...".format(joint))
-                sys.stdout.flush()
-
             refData = self.reference.joints[joint]
             inpData = self.input.joints[joint]
 
@@ -83,9 +79,6 @@ class DP(DPBase):
             self.correspondents[joint] = np.array(correspondentPoints)
             self.totalCosts[joint] = np.nanmin(matchingCost[self.reference.frame_max - 1]) / self.reference.frame_max
 
-            if self.verbose:
-                sys.stdout.write("\r{0} is calculating...finished\n".format(joint))
-                sys.stdout.flush()
             if showresult:
                 self.showresult(joint, correspondLine)
             if resultdir != "":
