@@ -241,6 +241,7 @@ pip-selfcheck.json
 
 /baseball/dp
 /volleyball/dp
+/gui/dp
 
 # pycharm
 .idea
