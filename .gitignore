@@ -239,9 +239,10 @@ pip-selfcheck.json
 /volleyball/__oldfiles
 /volleyball/*.csv
 
-#/baseball/dp
-#/volleyball/dp
-#/gui/dp
+# symbolic link
+baseball/dp
+volleyball/dp
+gui/dp
 
 # pycharm
 .idea
