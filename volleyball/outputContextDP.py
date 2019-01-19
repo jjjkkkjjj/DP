@@ -1,8 +1,7 @@
-from dp.data import Data
-from dp.utils import referenceReader
 from dp.contextdp import ContextDP
 from dp.view import Visualization
-from dp.calccorrcoef import corrcoefMean
+from dp.data import Data
+from dp.utils import referenceReader
 import os
 import sys
 
@@ -43,13 +42,13 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
         inpData = Data()
         inpData.set_from_trc(os.path.join('./trc', name, filename), lines='volleyball')
 
-        DP_ = ContextDP(reference=refData, input=inpData, verbose=False, ignoreWarning=True, verboseNan=False)
+        DP_ = ContextDP(contexts=contexts, reference=refData, input=inpData, verbose=False, ignoreWarning=True, verboseNan=False)
 
         resultDir = os.path.join(resultSuperDir, filename[:-4])
         if not os.path.exists(resultDir):
             os.mkdir(resultDir)
         if method == 'sync':
-            DP_.sync(contexts)
+            DP_.sync()
             view = Visualization()
             X, Y = DP_.resultData()
             view.show(x=X, y=Y, xtime=refData.frame_max, ytime=inpData.frame_max,
@@ -59,23 +58,14 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
         elif method == 'sync-visualization':
             fps = 240
             colors = DP_.resultVisualization(fps=fps, maximumGapTime=0.1, resultDir=resultDir)
-            #DP_.input.show(fps=fps, colors=colors)
+            DP_.input.show(fps=fps, colors=colors)
             DP_.input.save(path=resultDir + "/R_{0}-I_{1}.mp4".format(refData.name, inpData.name), fps=fps, colors=colors, saveonly=True)
 
         else:
             raise ValueError("{0} is invalid method".format(method))
     print("\nfinished {0}-{1} in {2}".format(serve, method, name))
 
-def writecorrcoef(name, initFileNum, finFileNum, showcorrcoef, savescvpath):
-    Datalists = []
-    Dir = "./trc/" + name
 
-    for i in range(initFileNum, finFileNum + 1):
-        filename = name + '{0:02d}.trc'.format(i)
-        data = Data()
-        data.set_from_trc(os.path.join(Dir, filename), lines='volleyball')
-        Datalists.append(data)
-    return corrcoefMean(Datalists, verbose=False, showcorrcoef=showcorrcoef, savecsvpath=savescvpath)
 
 def main(method):
     implementDP(name='IMAMURA', serve='normal', method=method, initFileNum=1, finFileNum=7)

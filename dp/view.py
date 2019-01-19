@@ -66,17 +66,18 @@ class Visualization(object):
         return
 
     def show3d(self, x, y, z, jointNames, saveonly=False, title=None, savepath=None, fps=240, lines=None, verbose=False, colors=None): # x[time, joint] ,color must be normalized -1~1
-        gui = gui3d(x, y, z, jointNames, fps, lines, colors)
-        gui.setViewRange()
         if saveonly:
             if savepath is None:
                 raise ValueError("when you call save, you must set savepath")
-
+            gui = gui3d(x, y, z, jointNames, fps, lines, colors)
+            gui.setViewRange()
             gui.saveVideo(savepath)
             if verbose:
                 print('saved {0}'.format(savepath))
             return
         app = QApplication(sys.argv)
+        gui = gui3d(x, y, z, jointNames, fps, lines, colors)
+        gui.setViewRange()
         gui.show()
         sys.exit(app.exec_())
 

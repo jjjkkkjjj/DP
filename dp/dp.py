@@ -242,8 +242,12 @@ class DP(DPBase):
     def resultVisualization(self, fps=240, maximumGapTime=0.1, resultDir=""):
         myMatchingCostFunc = constraint(kind='visualization')
 
-        self.calcCorrespondInitial(showresult=False, resultdir=resultDir, myMatchingCostFunc=myMatchingCostFunc, correspondLine=True)
+        self.calcCorrespondInitial(showresult=False, resultdir=resultDir, myMatchingCostFunc=myMatchingCostFunc,
+                                   correspondLine=True)
 
+        return self.calc_visualization(fps=fps, maximumGapTime=maximumGapTime)
+
+    def calc_visualization(self, fps=240, maximumGapTime=0.1):
         Ref, Inp = self.resultData()
 
         # colors is ndarray:[time, joint(index)]
