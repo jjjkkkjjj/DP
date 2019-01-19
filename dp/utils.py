@@ -108,3 +108,21 @@ def csvReader(csvfile, dir):
     data.setvalues(csvfile, np.array(X), np.array(Y), np.array(Z), jointNames, dir=dir, lines='baseball')
 
     return data
+
+def contexts(contextType):
+    if contextType == 'Baseball':
+        contexts = []
+        return contexts
+    elif contextType == 'Volleyball':
+        contexts = [['head', 'R_ear', 'L_ear'],
+                    ['R_hand', 'R_in_wrist', 'R_out_wrist'],
+                    ['L_hand', 'L_in_wrist', 'L_out_wrist'],
+                    ['R_out_elbow', 'R_in_elbow', 'R_backshoulder'],
+                    ['L_out_elbow', 'L_in_elbow', 'L_backshoulder'],
+                    ['sternum', 'R_frontshoulder', 'L_frontshoulder'],
+                    ['R_rib', 'R_ASIS'],
+                    ['L_rib', 'L_ASIS'],
+                    ['R_PSIS', 'L_PSIS']]
+        return contexts
+    else:
+        raise NameError('{0} is invalid context type'.format(contextType))

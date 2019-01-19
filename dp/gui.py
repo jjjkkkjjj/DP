@@ -1,6 +1,7 @@
 from dp.dp import DP
 from dp.data import Data
-from dp.utils import csvReader
+from dp.utils import csvReader, contexts
+from dp.contextdp import SyncContextDP, AsyncContextDP
 import sys
 import os
 import platform
@@ -29,6 +30,8 @@ class DPgui(QMainWindow):
         # initialixzation
         self.prevDirVolleyball = None
         self.prevDirBaseball = None
+        self.prevContextsDirVolleyball = None
+        self.prevContextsDirBaseball = None
 
         self.done = False
         self.colors = None
@@ -40,15 +43,17 @@ class DPgui(QMainWindow):
         self.lines = None
         self.frame_max = 0
 
-        if not os.path.exists('./__config__'):
-            os.mkdir('__config__')
+        if not os.path.exists('./.config'):
+            os.mkdir('.config')
 
-        if not os.path.exists('./__config__/gui.config'):
-            with open('./__config__/gui.config', 'w') as f:
+        if not os.path.exists('./.config/gui.config'):
+            with open('./.config/gui.config', 'w') as f:
                 f.write('prevDirVolleyball,None,\n')
                 f.write('prevDirBaseball,None,\n')
+                f.write('prevContextsDirVolleyball,None,\n')
+                f.write('prevContextsDirBaseball,None,\n')
 
-        with open('./__config__/gui.config', 'r') as f:
+        with open('./.config/gui.config', 'r') as f:
             lines = f.readlines()
             for line in lines:
                 tmp = line.split(',')
@@ -378,15 +383,19 @@ class DPgui(QMainWindow):
         self.slider.setValue(value)
 
     def closeEvent(self, a0: QCloseEvent):
-        with open('./__config__/gui.config', 'w') as f:
+        with open('./.config/gui.config', 'w') as f:
             f.write('prevDirVolleyball,{0},\n'.format(self.prevDirVolleyball))
             f.write('prevDirBaseball,{0},\n'.format(self.prevDirBaseball))
+            f.write('prevContextsDirVolleyball,{0},\n'.format(self.prevContextsDirVolleyball))
+            f.write('prevContextsDirBaseball,{0},\n'.format(self.prevContextsDirBaseball))
 
 class LeftDockWidget(QWidget):
     def __init__(self, parent):
         QWidget.__init__(self, parent)
         self.parent = parent
 
+        self.calcType = 'Independent'
+        self.contextsSet = {'type': 'Default', 'contexts': contexts('Baseball')}
         self.refPath = None
         self.inpPath = None
 
@@ -399,6 +408,15 @@ class LeftDockWidget(QWidget):
         self.groupConfig = QGroupBox("DP")
         vboxConfig = QVBoxLayout()
 
+        self.labelCalculationType = QLabel()
+        self.labelCalculationType.setText("Calculation Type")
+        vboxConfig.addWidget(self.labelCalculationType)
+
+        self.comboBoxCalculationType = QComboBox()
+        self.comboBoxCalculationType.addItems(["Independet", "Synchronous Contexts", "Asynchronous Contexts"])
+        self.comboBoxCalculationType.currentIndexChanged.connect(self.comboBoxCalculationTypeChanged)
+        vboxConfig.addWidget(self.comboBoxCalculationType)
+
         self.labelSkeltonType = QLabel()
         self.labelSkeltonType.setText("Skelton Type")
         vboxConfig.addWidget(self.labelSkeltonType)
@@ -407,6 +425,16 @@ class LeftDockWidget(QWidget):
         self.comboBoxSkeltonType.addItems(["Baseball", "Volleyball"])
         self.comboBoxSkeltonType.currentIndexChanged.connect(self.comboBoxSkeltonTypeChanged)
         vboxConfig.addWidget(self.comboBoxSkeltonType)
+
+        self.labelContextsType = QLabel()
+        self.labelContextsType.setText("Default")
+        self.labelContextsType.setEnabled(False)
+        vboxConfig.addWidget(self.labelContextsType)
+
+        self.buttonManuallyReadContexts = QPushButton("Manually Read Contexts")
+        self.buttonManuallyReadContexts.clicked.connect(self.manuallyReadContextsClicked)
+        self.buttonManuallyReadContexts.setEnabled(False)
+        vboxConfig.addWidget(self.buttonManuallyReadContexts)
 
         self.labelReferencePatternPath = QLabel()
         self.labelReferencePatternPath.setText("Reference Pattern Path")
@@ -487,6 +515,23 @@ class LeftDockWidget(QWidget):
         self.timer.timeout.connect(self.updateVideo)
 
     # event
+    def comboBoxCalculationTypeChanged(self):
+        if 'Contexts' in str(self.comboBoxCalculationType.currentText()):
+            self.labelContextsType.setEnabled(True)
+            self.buttonManuallyReadContexts.setEnabled(True)
+        else:
+            self.labelContextsType.setEnabled(False)
+            self.buttonManuallyReadContexts.setEnabled(False)
+
+    def comboBoxSkeltonTypeChanged(self):
+        self.refPath = None
+        self.inpPath = None
+        self.labelRealRefPath.setText("No selected")
+        self.labelRealInpPath.setText("No selected")
+
+        self.contextsSet = {'type': 'Default', 'contexts': contexts(str(self.comboBoxSkeltonType.currentText()))}
+        self.labelContextsType.setText(self.contextsSet['type'])
+
     def openClicked(self, ref):
         basedir = ''
         if self.comboBoxSkeltonType.currentText() == 'Volleyball':
@@ -526,12 +571,6 @@ class LeftDockWidget(QWidget):
         else:
             self.buttonDone.setEnabled(False)
 
-    def comboBoxSkeltonTypeChanged(self):
-        self.refPath = None
-        self.inpPath = None
-        self.labelRealRefPath.setText("No selected")
-        self.labelRealInpPath.setText("No selected")
-
     def doneClicked(self):
         if self.comboBoxSkeltonType.currentText() == 'Baseball':
             refData = csvReader(os.path.basename(self.refPath), os.path.dirname(self.refPath))
@@ -559,7 +598,8 @@ class LeftDockWidget(QWidget):
         self.parent.reset()
 
         try:
-            loadingDialog = LoadingDialog(inpData, refData, fps=int(self.lineeditFps.text()), maximumGapTime=float(self.lineEditMaxGapTime.text()), parent=self)
+            loadingDialog = LoadingDialog(self.contextsSet ,str(self.comboBoxCalculationType.currentText()), inpData, refData,
+                                          fps=int(self.lineeditFps.text()), maximumGapTime=float(self.lineEditMaxGapTime.text()), parent=self)
             loadingDialog.setWindowModality(Qt.ApplicationModal)
             loadingDialog.show()
             #colors = loadingDialog.start(inpData, refData, fps=int(self.lineeditFps.text()), maximumGapTime=float(self.lineEditMaxGapTime.text()))
@@ -575,6 +615,46 @@ class LeftDockWidget(QWidget):
         except Exception as e:
             tb = sys.exc_info()[2]
             QMessageBox.critical(self, "Caution", "Unexpected error occured:{0}".format(e.with_traceback(tb)))
+
+    def manuallyReadContextsClicked(self):
+        basedir = ''
+        filters = "CONTEXTS files(*.contexts)"
+        if self.comboBoxSkeltonType.currentText() == 'Volleyball':
+            if self.parent.prevContextsDirVolleyball is not None:
+                basedir = self.parent.prevContextsDirVolleyball
+        elif self.comboBoxSkeltonType.currentText() == 'Baseball':
+            if self.parent.prevContextsDirBaseball is not None:
+                basedir = self.parent.prevContextsDirBaseball
+
+        contextsPath, __ = QFileDialog.getOpenFileName(self, 'load file', basedir, filters)
+        # check whether contexts file is valid or not
+        def checkContextFile():
+            if contextsPath == "":
+                return None
+            try:
+                with open(contextsPath, 'r') as f:
+                    contexts_ = []
+                    lines = f.readlines()
+                    for line in lines:
+                        values = line.strip().split(',')
+                        if values[-1] == "":
+                            values = values[:-1]
+                        contexts_.append(values)
+                    return contexts_
+            except Exception as e:
+                tb = sys.exc_info()[2]
+                QMessageBox.critical(self, "Caution", "\"{0}\" is invelid file\n{1}".format(contextsPath, e.with_traceback(tb)))
+
+        checkResult = checkContextFile()
+        if checkResult is not None:
+            self.contextsSet['type'] = contextsPath
+            self.contextsSet['contexts'] = checkResult
+            self.labelContextsType.setText(os.path.basename(contextsPath))
+            exec('self.parent.prevContextsDir{0} = os.path.dirname(contextsPath)'.format(
+                self.comboBoxSkeltonType.currentText()))
+        else:
+            self.contextsSet['type'] = 'Default'
+            self.labelContextsType.setText(self.contextsSet['type'])
 
     def play(self):
         self.buttonPlay.setEnabled(False)
@@ -606,7 +686,14 @@ class Calculator(QThread):
     def run(self):
         try:
             sys.stdout = Logger(self.parent)
-            DP_ = DP(self.parent.refData, self.parent.inpData, verbose=True, ignoreWarning=True, verboseNan=True)
+            kwargs = {'reference': self.parent.refData, 'input': self.parent.inpData,
+                      'verbose': True, 'ignoreWarning': True, 'verboseNan': True}
+            if self.parent.calcType == 'Independent':
+                DP_ = DP(**kwargs)
+            elif self.parent.calcType == 'Synchronous Contexts':
+                DP_ = SyncContextDP(self.parent.contextsSet['contexts'], **kwargs)
+            elif self.parent.calcType == 'Asynchronous Contexts':
+                DP_ = AsyncContextDP(self.parent.contextsSet['contexts'], **kwargs)
             colors = DP_.resultVisualization(fps=self.parent.fps, maximumGapTime=self.parent.maximumGapTime)
 
             sys.stdout = sys.__stdout__
@@ -636,10 +723,12 @@ class Logger(object):
         pass
 
 class LoadingDialog(QMainWindow):
-    def __init__(self, inpData, refData, fps, maximumGapTime, parent=None):
+    def __init__(self, contextsSet, calcType, inpData, refData, fps, maximumGapTime, parent=None):
         QMainWindow.__init__(self, parent)
         self.parent = parent
 
+        self.calcType = calcType
+        self.contextsSet = contextsSet
         self.inpData = inpData
         self.refData = refData
         self.fps = fps

@@ -1,4 +1,4 @@
-from dp.contextdp import ContextDP
+from dp.contextdp import SyncContextDP, ASyncContextDP
 from dp.view import Visualization
 from dp.data import Data
 from dp.utils import referenceReader
@@ -42,13 +42,17 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
         inpData = Data()
         inpData.set_from_trc(os.path.join('./trc', name, filename), lines='volleyball')
 
-        DP_ = ContextDP(contexts=contexts, reference=refData, input=inpData, verbose=False, ignoreWarning=True, verboseNan=False)
+        if 'async' in method: # async context dp
+            DP_ = ASyncContextDP(contexts=contexts, reference=refData, input=inpData, verbose=False, ignoreWarning=True,
+                                verboseNan=False)
+        else:
+            DP_ = SyncContextDP(contexts=contexts, reference=refData, input=inpData, verbose=False, ignoreWarning=True, verboseNan=False)
 
         resultDir = os.path.join(resultSuperDir, filename[:-4])
         if not os.path.exists(resultDir):
             os.mkdir(resultDir)
         if method == 'sync':
-            DP_.sync()
+            DP_.synchronous()
             view = Visualization()
             X, Y = DP_.resultData()
             view.show(x=X, y=Y, xtime=refData.frame_max, ytime=inpData.frame_max,
@@ -56,6 +60,20 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
                       savepath=resultDir + "/overlayed-all-matching-costs.png")
 
         elif method == 'sync-visualization':
+            fps = 240
+            colors = DP_.resultVisualization(fps=fps, maximumGapTime=0.1, resultDir=resultDir)
+            DP_.input.show(fps=fps, colors=colors)
+            DP_.input.save(path=resultDir + "/R_{0}-I_{1}.mp4".format(refData.name, inpData.name), fps=fps, colors=colors, saveonly=True)
+
+        elif method == 'async':
+            DP_.asynchronous()
+            view = Visualization()
+            X, Y = DP_.resultData()
+            view.show(x=X, y=Y, xtime=refData.frame_max, ytime=inpData.frame_max,
+                      title='overlayed all matching costs', legend=True, correspondLine=False,
+                      savepath=resultDir + "/overlayed-all-matching-costs.png")
+
+        elif method == 'async-visualization':
             fps = 240
             colors = DP_.resultVisualization(fps=fps, maximumGapTime=0.1, resultDir=resultDir)
             DP_.input.show(fps=fps, colors=colors)
