@@ -54,7 +54,7 @@ class DPBase(object):
         matchingCostFunc, backTrackFunc = check_lowmemory_myMatchingCostFunc(myMatchingCostFunc)
 
         # for check
-        #matchingCost = matchingCostFunc(refDatas, inpDatas)
+        matchingCost = matchingCostFunc(refDatas, inpDatas)
 
         try:
             matchingCost = matchingCostFunc(refDatas, inpDatas)

@@ -31,8 +31,8 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
                 ['L_rib', 'L_ASIS'],
                 ['R_PSIS', 'L_PSIS']]
     """
-    contexts = [['R_PSIS', 'L_PSIS']]
-    kinds = ['async2']
+    contexts = [['head', 'R_ear', 'L_ear']]
+    kinds = ['async3-lined']
 
     for i in range(initFileNum, finFileNum + 1):
         sys.stdout.write("\rcalculating now... {0}/{1}".format(i - initFileNum, finFileNum + 1 - initFileNum))
