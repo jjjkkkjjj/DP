@@ -1,4 +1,4 @@
-from dp.contextdp import SyncContextDP, ASyncContextDP
+from dp.contextdp import SyncContextDP, AsyncContextDP
 from dp.view import Visualization
 from dp.data import Data
 from dp.utils import referenceReader
@@ -20,6 +20,7 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
     reffile = referenceReader("{0}-{1}.csv".format(name, serve), Dir, superDir=name)
     refData = Data()
     refData.set_from_trc(os.path.join(Dir, reffile), lines='volleyball')
+    """
     contexts = [['head', 'R_ear', 'L_ear'],
                 ['R_hand', 'R_in_wrist', 'R_out_wrist'],
                 ['L_hand', 'L_in_wrist', 'L_out_wrist'],
@@ -29,6 +30,9 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
                 ['R_rib', 'R_ASIS'],
                 ['L_rib', 'L_ASIS'],
                 ['R_PSIS', 'L_PSIS']]
+    """
+    contexts = [['R_PSIS', 'L_PSIS']]
+    kinds = ['async2']
 
     for i in range(initFileNum, finFileNum + 1):
         sys.stdout.write("\rcalculating now... {0}/{1}".format(i - initFileNum, finFileNum + 1 - initFileNum))
@@ -43,7 +47,7 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
         inpData.set_from_trc(os.path.join('./trc', name, filename), lines='volleyball')
 
         if 'async' in method: # async context dp
-            DP_ = ASyncContextDP(contexts=contexts, reference=refData, input=inpData, verbose=False, ignoreWarning=True,
+            DP_ = AsyncContextDP(contexts=contexts, reference=refData, input=inpData, verbose=False, ignoreWarning=True,
                                 verboseNan=False)
         else:
             DP_ = SyncContextDP(contexts=contexts, reference=refData, input=inpData, verbose=False, ignoreWarning=True, verboseNan=False)
@@ -66,12 +70,13 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
             DP_.input.save(path=resultDir + "/R_{0}-I_{1}.mp4".format(refData.name, inpData.name), fps=fps, colors=colors, saveonly=True)
 
         elif method == 'async':
-            DP_.asynchronous()
+            DP_.asynchronous(kinds=kinds)
             view = Visualization()
             X, Y = DP_.resultData()
             view.show(x=X, y=Y, xtime=refData.frame_max, ytime=inpData.frame_max,
                       title='overlayed all matching costs', legend=True, correspondLine=False,
                       savepath=resultDir + "/overlayed-all-matching-costs.png")
+            exit()
 
         elif method == 'async-visualization':
             fps = 240
@@ -93,4 +98,6 @@ def main(method):
 
 if __name__ == '__main__':
     #main(method='sync')
-    main(method='sync-visualization')
+    #main(method='sync-visualization')
+    main(method='async')
+    #main(method='async-visualization')

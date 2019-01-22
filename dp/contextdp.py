@@ -1,7 +1,7 @@
 from .dp import DP
 from scipy.spatial.distance import cdist
 import numpy as np
-from .constraint import constraint
+from .constraint import constraint, lowMemoryConstraint
 
 class SyncContextDP(DP):
     def __init__(self, contexts, **kwargs):
@@ -121,7 +121,9 @@ class AsyncContextDP(DP):
 
         self.contexts = contexts
 
-    def asynchronous(self, myMatchingCostFunc=None, myLocalCosts=None, returnMatchingCosts=False):
+    def asynchronous(self, kinds, returnMatchingCosts=False):
+        if not isinstance(kinds, list) and len(kinds) != len(self.contexts):
+            raise ValueError('myMatchingCostFuncs must be list and have same length to contexts')
         self.correspondents = {}
 
         matchingCosts = {}
@@ -132,22 +134,20 @@ class AsyncContextDP(DP):
                 contextKey += '-'
             contextKey = contextKey[:-1]
 
-            if myLocalCosts is None:
-                localCost = np.zeros((self.reference.frame_max, self.input.frame_max))
-                for joint in context:
-                    localCost += cdist(self.reference.joints[joint], self.input.joints[joint], 'euclidean')
+            refDatas, inpDatas = [], []
+            for joint in context:
+                refDatas.append(self.reference.joints[joint])
+                inpDatas.append(self.input.joints[joint])
 
-            elif isinstance(myLocalCosts, dict):
-                localCost = myLocalCosts[contextKey]
-            else:
-                raise ValueError('myLocalCosts must be list')
             # call method in super of super class which is DPBase
-            self.correspondents[contextKey], matchingCosts[contextKey] = super(DP, self).calc(localCost,
-                                                                                              myMatchingCostFunc)
-            self.correspondents[contextKey] = np.array(self.correspondents[contextKey])
+            correspondentPointes, matchingCosts[contextKey] =\
+                super(DP, self).lowMemoryCalc(refDatas, inpDatas, myMatchingCostFunc=lowMemoryConstraint(kinds[index]), name=contextKey)
+            for correspondentPoint, joint in zip(correspondentPointes, self.contexts[index]):
+                self.correspondents[joint] = np.array(correspondentPoint)
+
         if returnMatchingCosts:
             return matchingCosts
-
+    """
     def syncCorrespondInitial(self, myMatchingCostFunc=None):
         myLocalCosts = {}
         for index, context in enumerate(self.contexts):
@@ -198,7 +198,7 @@ class AsyncContextDP(DP):
 
             self.correspondents[joint] = correspondentPoints
             self.totalCosts[joint] = np.nanmin(matchingCost[self.reference.frame_max - 1]) / self.reference.frame_max
-
+    """
     def resultVisualization(self, fps=240, maximumGapTime=0.1, resultDir=""):
         # calc sync dp for each context
         myMatchingCostFunc = constraint('visualization')

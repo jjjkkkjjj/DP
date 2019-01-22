@@ -89,6 +89,7 @@ class DP(DPBase):
         if returnMatchingCosts:
             return matchingCosts
 
+
     def calc_corrcoef(self, corrcoef, showresult=False, myMatchingCostFunc=None, resultdir="", correspondLine=True):
         jointNames = corrcoef['jointNames']
         Neighbors = corrcoef['neighbor']
@@ -310,3 +311,47 @@ class DP(DPBase):
 
         return colors
 
+    def lowMemoryCalc(self, jointNames, showresult=False, resultdir="", myLocalCosts=None, myMatchingCostFunc=None, correspondLine=True, returnMatchingCosts=False):
+        pass
+
+
+    def asyncCalc(self, jointNames, showresult=False, resultdir="", myLocalCosts=None, myMatchingCostFunc=None, correspondLine=True, returnMatchingCosts=False):
+        pass
+        if isinstance(jointNames, list) and len(jointNames) != 2:
+            raise ValueError(
+                "argument \'jointsNames\'[got type:{0}] must be list and have 2 length[got len:{1}]".format(
+                    type(jointNames).__name__, len(jointNames)))
+        matchingCosts = {}
+
+        joint0, joint1 = jointNames[0], jointNames[1]
+
+        refData0 = self.reference.joints[joint0]
+        inpData0 = self.input.joints[joint0]
+
+        refData1 = self.reference.joints[joint1]
+        inpData1 = self.input.joints[joint1]
+
+        correspondentPoints, matchingCost = super().lowMemoryCalc(jointNames, myMatchingCostFunc, )
+        if matchingCost is None:
+            return
+
+        if returnMatchingCosts:
+            try:
+                tmp = np.nanargmin(matchingCost[self.reference.frame_max - 1])  # check whether all time are nan
+                matchingCosts[joint] = matchingCost
+                return
+            except ValueError:
+                return
+
+        self.correspondents[joint] = np.array(correspondentPoints)
+        self.totalCosts[joint] = np.nanmin(matchingCost[self.reference.frame_max - 1]) / self.reference.frame_max
+
+        if showresult:
+            self.showresult(joint, correspondLine)
+        if resultdir != "":
+            self.saveresult(joint, savepath=resultdir + "/{0}-R_{1}-I_{2}.png".format(joint, self.reference.name,
+                                                                                      self.input.name),
+                            correspondLine=correspondLine)
+
+        if returnMatchingCosts:
+            return matchingCosts
