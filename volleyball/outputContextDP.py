@@ -20,7 +20,7 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
     reffile = referenceReader("{0}-{1}.csv".format(name, serve), Dir, superDir=name)
     refData = Data()
     refData.set_from_trc(os.path.join(Dir, reffile), lines='volleyball')
-    """
+
     contexts = [['head', 'R_ear', 'L_ear'],
                 ['R_hand', 'R_in_wrist', 'R_out_wrist'],
                 ['L_hand', 'L_in_wrist', 'L_out_wrist'],
@@ -30,9 +30,20 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
                 ['R_rib', 'R_ASIS'],
                 ['L_rib', 'L_ASIS'],
                 ['R_PSIS', 'L_PSIS']]
-    """
-    contexts = [['head', 'R_ear', 'L_ear']]
-    kinds = ['async3-lined']
+    kinds = ['async3-lined',
+            'async3-lined',
+            'async3-lined',
+            'async3-lined',
+            'async3-lined',
+            'async3-lined',
+            'async2',
+            'async2',
+            'async2']
+    
+    #contexts = [['R_PSIS', 'L_PSIS']]
+    #kinds = ['async2']
+    #contexts = [['R_out_elbow', 'R_in_elbow', 'R_backshoulder']]
+    #kinds = ['async3-lined']
 
     for i in range(initFileNum, finFileNum + 1):
         sys.stdout.write("\rcalculating now... {0}/{1}".format(i - initFileNum, finFileNum + 1 - initFileNum))

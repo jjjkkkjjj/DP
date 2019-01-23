@@ -140,9 +140,9 @@ class AsyncContextDP(DP):
                 inpDatas.append(self.input.joints[joint])
 
             # call method in super of super class which is DPBase
-            correspondentPointes, matchingCosts[contextKey] =\
+            correspondentPointses, matchingCosts[contextKey] =\
                 super(DP, self).lowMemoryCalc(refDatas, inpDatas, myMatchingCostFunc=lowMemoryConstraint(kinds[index]), name=contextKey)
-            for correspondentPoint, joint in zip(correspondentPointes, self.contexts[index]):
+            for correspondentPoint, joint in zip(correspondentPointses, self.contexts[index]):
                 self.correspondents[joint] = np.array(correspondentPoint)
 
         if returnMatchingCosts:

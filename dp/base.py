@@ -54,7 +54,7 @@ class DPBase(object):
         matchingCostFunc, backTrackFunc = check_lowmemory_myMatchingCostFunc(myMatchingCostFunc)
 
         # for check
-        matchingCost = matchingCostFunc(refDatas, inpDatas)
+        #matchingCost = matchingCostFunc(refDatas, inpDatas)
 
         try:
             matchingCost = matchingCostFunc(refDatas, inpDatas)
@@ -63,17 +63,12 @@ class DPBase(object):
                 sys.stdout.write("\rWarning:{0}:{1}\nskip...\n".format(name, sys.exc_info()))
                 sys.stdout.flush()
                 return None, None
-        """
-        for check
-        
-        correspondentPoints = backTrackFunc(matchingCost=matchingCost, refDatas=refDatas, inpDatas=inpDatas,
-                                            argsFinFrameBackTracked=np.unravel_index(np.nanargmin(matchingCost[matchingCost.shape[0] - 1]),
-                                             matchingCost[matchingCost.shape[0] - 1].shape))
-        """
+
+        #for check
+        #correspondentPointses = backTrackFunc(matchingCost=matchingCost, refDatas=refDatas, inpDatas=inpDatas)
+
         try:
-            correspondentPointses = backTrackFunc(matchingCost=matchingCost, refDatas=refDatas, inpDatas=inpDatas,
-                                                  argsFinFrameBackTracked=np.unravel_index(np.nanargmin(matchingCost[matchingCost.shape[0] - 1]),
-                                                      matchingCost[matchingCost.shape[0] - 1].shape))
+            correspondentPointses = backTrackFunc(matchingCost=matchingCost, refDatas=refDatas, inpDatas=inpDatas)
         except ValueError:
             # if self.verbose:
             if self.verboseNan:

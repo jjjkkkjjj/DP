@@ -447,21 +447,6 @@ def lowMemoryConstraint(kind='default'):
             R, I = refDataBase.shape[0], inpDataBase.shape[0]
 
             localCosts = np.zeros((R, I, 2*limits + 1)) # (r, i, epsilon)
-            for index, epsilon in enumerate(range(-limits, limits + 1)):
-                # d_{i,j} + d'_{i,j+epsilon}
-                # d_{i,j}
-                localCosts[:, :, index] += cdist(refDataBase, inpDataBase, 'euclidean')
-                # d'_{i,j+epsilon}
-                localCosts[:, -min(0, epsilon):I + min(0, -epsilon), index] +=\
-                    cdist(refDataPeripheral, inpDataPeripheral[max(0, epsilon):I - max(0, -epsilon)], 'euclidean')
-                # if j+epsilon is no exist, then inf
-                if epsilon < 0:
-                    localCosts[:, :-epsilon, index] = np.inf
-                elif epsilon == 0:
-                    localCosts[:, :, index] = np.inf
-                else:
-                    localCosts[:, -epsilon:, index] = np.inf
-            """
             # minus epsilon
             for epsilon in range(-limits, 0):
                 index = epsilon + limits
@@ -488,7 +473,7 @@ def lowMemoryConstraint(kind='default'):
                 localCosts[:, :-epsilon, index] += cdist(refDataPeripheral, inpDataPeripheral[epsilon:], 'euclidean')
                 # if j+epsilon is less than zero, then inf
                 localCosts[:, -epsilon:, index] = np.inf
-            """
+
             return localCosts
 
         def asyncCalc(refDatas, inpDatas):
@@ -506,12 +491,12 @@ def lowMemoryConstraint(kind='default'):
                 for index, epsilon in enumerate(range(-limits, limits + 1)):
                     matchingCost[r, 0, index] = localCost[r, 0, index] + np.min(matchingCost[r - 1, 0, max(epsilon, 0):index + 1])
                 # i = 1
-                #for index, epsilon in enumerate(range(-limits, limits + 1)):
+                for index, epsilon in enumerate(range(-limits, limits + 1)):
                     matchingCost[r, 1, index] = localCost[r, 1, index] + np.min(np.concatenate([matchingCost[r - 1, 1, max(epsilon, 0):index + 1],
                                                                                                 matchingCost[r - 1, 0, max(epsilon + 1, 0):index + 2]]))
 
                 # i = 2...
-                #for index, epsilon in enumerate(range(-limits, limits + 1)):
+                for index, epsilon in enumerate(range(-limits, limits + 1)):
                     matchingCost[r, 2:, index] = localCost[r, 2:, index] + np.minimum.reduce(np.concatenate(
                                                                                             [matchingCost[r - 1, 2:, max(epsilon, 0):index + 1],
                                                                                             matchingCost[r - 1, 1:-1, max(epsilon + 1, 0):index + 2],
@@ -519,7 +504,7 @@ def lowMemoryConstraint(kind='default'):
 
             if np.sum(np.isinf(matchingCost[R - 1, :, :])) == matchingCost.shape[1] * matchingCost.shape[2]: # all matching cost are infinity
                 raise OverflowError('all matching cost are infinity')
-            return matchingCost
+            return {'matchingCost': matchingCost}
 
         def asyncBackTrack(**kwargs):
             refDatas = kwargs['refDatas']
@@ -625,95 +610,143 @@ def lowMemoryConstraint(kind='default'):
         def _async3LocalCost(refDataBase, refDataPeripheral1, refDataPeripheral2, inpDataBase, inpDataPeripheral1, inpDataPeripheral2):
             R, I = refDataBase.shape[0], inpDataBase.shape[0]
 
-            localCosts = np.zeros((R, I, 2*limits + 1, 2*limits + 1)) # (r, i, epsilon_p1, epsilon_p2)
-
-            refB_inpB_cdist = cdist(refDataBase, inpDataBase, 'euclidean')
-            refP1_inpP1_cdist, refP2_inpP2_cdist = [], []
+            localCosts = np.zeros((R, I, 2*limits + 1)) # (r, i, epsilon)
+            # minus epsilon
             for epsilon in range(-limits, 0):
-                refP1_inpP1_cdist.append(cdist(refDataPeripheral1, inpDataPeripheral1[:epsilon], 'euclidean'))
-                refP2_inpP2_cdist.append(cdist(refDataPeripheral2, inpDataPeripheral2[:epsilon], 'euclidean'))
-            refP1_inpP1_cdist.append(cdist(refDataPeripheral1, inpDataPeripheral2, 'euclidean'))
-            refP2_inpP2_cdist.append(cdist(refDataPeripheral2, inpDataPeripheral2, 'euclidean'))
+                index = epsilon + limits
+                # d_{i,j} + d'_{i,j+epsilon}
+                # d_{i,j}
+                localCosts[:, :, index] += cdist(refDataBase, inpDataBase, 'euclidean')
+                # d'_{i,j+epsilon}
+                localCosts[:, -epsilon:, index] += cdist(refDataPeripheral, inpDataPeripheral[:epsilon], 'euclidean')
+                # if j+epsilon is less than zero, then inf
+                localCosts[:, :-epsilon, index] = np.inf
+
+            # epsilon = 0
+            localCosts[:, :, limits] += cdist(refDataBase, inpDataBase, 'euclidean')
+            # d'_{i,j+epsilon}
+            localCosts[:, :, limits] += cdist(refDataPeripheral, inpDataPeripheral, 'euclidean')
+
+            # plus epsilon
             for epsilon in range(1, limits + 1):
-                refP1_inpP1_cdist.append(cdist(refDataPeripheral1, inpDataPeripheral1[epsilon:], 'euclidean'))
-                refP2_inpP2_cdist.append(cdist(refDataPeripheral2, inpDataPeripheral2[epsilon:], 'euclidean'))
-
-            for index_p1, epsilon_p1 in enumerate(range(-limits, limits + 1)):
-                for index_p2, epsilon_p2 in enumerate(range(-limits, limits + 1)):
-                    localCosts[:, :, index_p1, index_p2] += refB_inpB_cdist
-
-                    localCosts[:, -min(0, epsilon_p1):I + min(0, -epsilon_p1), index_p1, index_p2] += refP1_inpP1_cdist[index_p1]
-
-                    localCosts[:, -min(0, epsilon_p2):I + min(0, -epsilon_p2), index_p1, index_p2] += refP2_inpP2_cdist[index_p2]
-
-                    if epsilon_p1 < 0:
-                        localCosts[:, :-epsilon_p1, index_p1, index_p2] = np.inf
-                    elif epsilon_p1 == 0:
-                        localCosts[:, :, index_p1, index_p2] = np.inf
-                    else:
-                        localCosts[:, -epsilon_p1:, index_p1, index_p2] = np.inf
-
-                    if epsilon_p2 < 0:
-                        localCosts[:, :-epsilon_p2, index_p1, index_p2] = np.inf
-                    elif epsilon_p2 == 0:
-                        localCosts[:, :, index_p1, index_p2] = np.inf
-                    else:
-                        localCosts[:, -epsilon_p2:, index_p1, index_p2] = np.inf
+                index = epsilon + limits
+                # d_{i,j} + d'_{i,j+epsilon}
+                # d_{i,j}
+                localCosts[:, :, index] += cdist(refDataBase, inpDataBase, 'euclidean')
+                # d'_{i,j+epsilon}
+                localCosts[:, :-epsilon, index] += cdist(refDataPeripheral, inpDataPeripheral[epsilon:], 'euclidean')
+                # if j+epsilon is less than zero, then inf
+                localCosts[:, -epsilon:, index] = np.inf
 
             return localCosts
 
-        # both 1st refData and inpData will be treated as center point
+        # both 2nd refData and inpData will be treated as center point
         def asyncCalc(refDatas, inpDatas):
             if len(refDatas) != 3 or len(inpDatas) != 3:
                 raise ValueError('The length of both refDatas and inpDatas must be three, but got ref:{0} and inp:{1}'
                                  .format(len(refDatas), len(inpDatas)))
             R, I = refDatas[0].shape[0], inpDatas[0].shape[0]
 
-            localCost = _async3LocalCost(refDataBase=refDatas[0], refDataPeripheral1=refDatas[1], refDataPeripheral2=refDatas[2],
-                                          inpDataBase=inpDatas[0], inpDataPeripheral1=inpDatas[1], inpDataPeripheral2=inpDatas[2])
-            matchingCost = np.zeros((R, I, 2 * limits + 1, 2 * limits + 1))
-            matchingCost[0, :, :, :] = localCost[0, :, :, :]
+            localCost1 = _asyncLocalCost(refDatas[1], refDatas[0], inpDatas[1], inpDatas[0], limits, 2)
+            localCost3 = _asyncLocalCost(refDatas[1], refDatas[2], inpDatas[1], inpDatas[2], limits, 2)
+            matchingCost1 = np.zeros((R, I, 2*limits + 1))
+            matchingCost3 = np.zeros((R, I, 2 * limits + 1))
+            matchingCost1[0, :, :] = localCost1[0, :, :]
+            matchingCost3[0, :, :] = localCost3[0, :, :]
 
+            baseArgs = np.zeros((R, I, 2 * limits + 1))
+            baseArgs[0, :, :] = np.nan
             for r in range(1, R):
+
+                for index, epsilon in enumerate(range(-limits, limits + 1)):
+                    # i = 0
+                    matchingCost1[r, 0, index] = localCost1[r, 0, index] + np.min(matchingCost1[r - 1, 0, max(epsilon, 0):index + 1])
+                    matchingCost3[r, 0, index] = localCost3[r, 0, index] + np.min(matchingCost3[r - 1, 0, max(epsilon, 0):index + 1])
+                    #baseArgs[r, 0, index] = 0
+                    #baseArgs[r - 1, 0, index] = 0
+
+                    # i = 1
+                    cumulativeCost1 = np.array([np.min(matchingCost1[r - 1, 1, max(epsilon, 0):index + 1]),
+                                                np.min(matchingCost1[r - 1, 0, max(epsilon + 1, 0):index + 2])])
+                    cumulativeCost3 = np.array([np.min(matchingCost3[r - 1, 1, max(epsilon, 0):index + 1]),
+                                                np.min(matchingCost3[r - 1, 0, max(epsilon + 1, 0):index + 2])])
+                    arg = np.nanargmin(cumulativeCost1 + cumulativeCost3, axis=0)
+                    matchingCost1[r, 1, index] = localCost1[r, 1, index] + cumulativeCost1[arg]
+                    matchingCost3[r, 1, index] = localCost3[r, 1, index] + cumulativeCost3[arg]
+                    baseArgs[r, 1, index] = -arg
+                    #baseArgs[r - 1, 1, index] = -arg
+
+                    # i = 2...
+                    cumulativeCost1 = np.array([np.min(matchingCost1[r - 1, 2:, max(epsilon, 0):index + 1], axis=1),
+                                                np.min(matchingCost1[r - 1, 1:-1, max(epsilon + 1, 0):index + 2], axis=1),
+                                                np.min(matchingCost1[r - 1, :-2, max(epsilon + 2, 0):index + 3], axis=1)])
+                    cumulativeCost3 = np.array([np.min(matchingCost3[r - 1, 2:, max(epsilon, 0):index + 1], axis=1),
+                                                np.min(matchingCost3[r - 1, 1:-1, max(epsilon + 1, 0):index + 2], axis=1),
+                                                np.min(matchingCost3[r - 1, :-2, max(epsilon + 2, 0):index + 3], axis=1)])
+                    arg = np.nanargmin(cumulativeCost1 + cumulativeCost3, axis=0)
+                    matchingCost1[r, 2:, index] = localCost1[r, 2:, index] + np.diag(cumulativeCost1[arg])
+                    matchingCost3[r, 2:, index] = localCost3[r, 2:, index] + np.diag(cumulativeCost3[arg])
+                    baseArgs[r, 2:, index] = -arg
+                    #baseArgs[r - 1, 2:, index] = -arg
+
+            # calculate total matching cost
+            totalMatchingCosts = np.ones(I) * np.inf
+            for index, epsilon in enumerate(range(-limits, limits + 1)):
                 # i = 0
-                for index_p1, epsilon_p1 in enumerate(range(-limits, limits + 1)):
-                    for index_p2, epsilon_p2 in enumerate(range(-limits, limits + 1)):
-                        matchingCost[r, 0, index_p1, index_p2] = localCost[r, 0, index_p1, index_p2] +\
-                           np.min(matchingCost[r - 1, 0, max(epsilon_p1, 0):index_p1 + 1, max(epsilon_p2, 0):index_p2 + 1])
+                totalMatchingCosts[0] = np.min(matchingCost1[R - 1, 0, max(epsilon, 0):index + 1]) + \
+                                        np.min(matchingCost3[R - 1, 0, max(epsilon, 0):index + 1])
+                #baseArgs[R, 0, index] = 0
+                #baseArgs[R - 1, 0, index] = 0
 
-                        matchingCost[r, 1, index_p1, index_p2] = localCost[r, 1, index_p1, index_p2] + \
-                           np.min(np.concatenate([matchingCost[r - 1, 1, max(epsilon_p1, 0):index_p1 + 1, max(epsilon_p2, 0):index_p2 + 1].flatten(),
-                                                  matchingCost[r - 1, 0, max(epsilon_p1 + 1, 0):index_p1 + 2, max(epsilon_p2 + 1, 0):index_p2 + 2].flatten()]))
+                # i = 1
+                cumulativeCost1 = np.array([np.min(matchingCost1[R - 1, 1, max(epsilon, 0):index + 1]),
+                                            np.min(matchingCost1[R - 1, 0, max(epsilon + 1, 0):index + 2])])
+                cumulativeCost3 = np.array([np.min(matchingCost3[R - 1, 1, max(epsilon, 0):index + 1]),
+                                            np.min(matchingCost3[R - 1, 0, max(epsilon + 1, 0):index + 2])])
+                arg = np.nanargmin(cumulativeCost1 + cumulativeCost3, axis=0)
+                totalMatchingCosts[1] = cumulativeCost1[arg] + cumulativeCost3[arg]
+                #baseArgs[R, 1, index] = -arg
+                #baseArgs[R - 1, 1, index] = -arg
 
-                        i_ = matchingCost[r - 1, 2:, max(epsilon_p1, 0):index_p1 + 1, max(epsilon_p2, 0):index_p2 + 1]
-                        i_1 = matchingCost[r - 1, 1:-1, max(epsilon_p1 + 1, 0):index_p1 + 2, max(epsilon_p2 + 1, 0):index_p2 + 2]
-                        i_2 = matchingCost[r - 1, :-2, max(epsilon_p1 + 2, 0):index_p1 + 3, max(epsilon_p2 + 2, 0):index_p2 + 3]
-                        matchingCost[r, 2:, index_p1, index_p2] = localCost[r, 2:, index_p1, index_p2] + \
-                           np.minimum.reduce(np.concatenate([i_.reshape((i_.shape[0], i_.shape[1] * i_.shape[2])),
-                                                             i_1.reshape((i_1.shape[0], i_1.shape[1] * i_1.shape[2])),
-                                                             i_2.reshape((i_2.shape[0], i_2.shape[1] * i_2.shape[2]))], axis=1), axis=1)
+                # i >= 2
+                cumulativeCost1 = np.array([np.min(matchingCost1[R - 1, 2:, max(epsilon, 0):index + 1], axis=1),
+                                            np.min(matchingCost1[R - 1, 1:-1, max(epsilon + 1, 0):index + 2], axis=1),
+                                            np.min(matchingCost1[R - 1, :-2, max(epsilon + 2, 0):index + 3], axis=1)])
+                cumulativeCost3 = np.array([np.min(matchingCost3[R - 1, 2:, max(epsilon, 0):index + 1], axis=1),
+                                            np.min(matchingCost3[R - 1, 1:-1, max(epsilon + 1, 0):index + 2], axis=1),
+                                            np.min(matchingCost3[R - 1, :-2, max(epsilon + 2, 0):index + 3], axis=1)])
+                arg = np.nanargmin(cumulativeCost1 + cumulativeCost3, axis=0)
+                totalMatchingCosts[2:] = np.diag(cumulativeCost1[arg]) + np.diag(cumulativeCost3[arg])
+                #baseArgs[R, 2:, index] = -arg
+                #baseArgs[R - 1, 2:, index] = -arg
 
-            if np.sum(np.isinf(matchingCost[R - 1, :, :, :])) == matchingCost.shape[1] * matchingCost.shape[2] * matchingCost.shape[3]: # all matching cost are infinity
+            if (np.sum(np.isinf(matchingCost1[R - 1, :, :])) == matchingCost1.shape[1] * matchingCost1.shape[2]) or \
+                (np.sum(np.isinf(matchingCost3[R - 1, :, :])) == matchingCost3.shape[1] * matchingCost3.shape[2]): # all matching cost are infinity
                 raise OverflowError('all matching cost are infinity')
-            return matchingCost
+            return {'matchingCost1':matchingCost1, 'matchingCost3':matchingCost3,
+                    'totalMatchingCosts':totalMatchingCosts, 'baseArgs':baseArgs}
 
         def asyncBackTrack(**kwargs):
             refDatas = kwargs['refDatas']
             inpDatas = kwargs['inpDatas']
-            matchingCost = kwargs['matchingCost']
+            matchingCost1 = kwargs['matchingCost1']
+            matchingCost3 = kwargs['matchingCost3']
+            totalMatchingCosts = kwargs['totalMatchingCosts']
+            baseArgs = kwargs['baseArgs']
 
             #inputFinFrameBackTracked, epsilonFinFrameBackTracked = kwargs['argsFinFrameBackTracked']
-            inputFinFrameBackTracked, epsilon_p1_FinFrameBackTracked, epsilon_p2_FinFrameBackTracked = \
-                np.unravel_index(np.nanargmin(matchingCost[matchingCost.shape[0] - 1]),
-                                              matchingCost[matchingCost.shape[0] - 1].shape)
+            inputFinFrameBackTracked = np.nanargmin(totalMatchingCosts)
+            epsilon1FinFrameBackTracked, epsilon3FinFrameBackTracked = \
+                np.nanargmin(matchingCost1[matchingCost1.shape[0] - 1, inputFinFrameBackTracked]), \
+                np.nanargmin(matchingCost3[matchingCost3.shape[0] - 1, inputFinFrameBackTracked])
 
-            correspondentPointsBase, correspondentPointsPeripheral1, correspondentPointsPeripheral2 = [], [], []
-            r, i, epsilon_p1, epsilon_p2 = matchingCost.shape[0] - 1, inputFinFrameBackTracked, \
-                                            epsilon_p1_FinFrameBackTracked - limits, epsilon_p2_FinFrameBackTracked - limits
+            correspondentPoints1, correspondentPoints2, correspondentPoints3 = [], [], []
+            r, i, epsilon1, epsilon3 = matchingCost1.shape[0] - 1, inputFinFrameBackTracked, \
+                                       epsilon1FinFrameBackTracked - limits, epsilon3FinFrameBackTracked - limits
 
-            correspondentPointsBase.append([r, i])
-            correspondentPointsPeripheral1.append([r, i + epsilon_p1])
-            correspondentPointsPeripheral2.append([r, i + epsilon_p2])
+            correspondentPoints2.append([r, i])
+            correspondentPoints1.append([r, i + epsilon1])
+            correspondentPoints3.append([r, i + epsilon3])
 
             """
             epsilon\i| i     i-1   i-2(tmp=0,1,2)
@@ -732,38 +765,29 @@ def lowMemoryConstraint(kind='default'):
                              [-2, -1, 0],
                              [-2, -1, 0]]
 
+            def _mcosts(iNext, epsilon, matchingCost):
+                if iNext == 0:
+                    return matchingCost[r - 1, i, max(epsilon, 0):epsilon + limits + 1]
+                elif iNext == 1:
+                    return matchingCost[r - 1, i - 1, max(epsilon + 1, 0):epsilon + limits + 2]
+                else:
+                    return matchingCost[r - 1, i - 2, max(epsilon + 2, 0):epsilon + limits + 3]
+
             while r > 0:
-                if i > 1:
-                    mcosts = [matchingCost[r - 1, i, max(epsilon_p1, 0):epsilon_p1 + limits + 1, max(epsilon_p2, 0):epsilon_p2 + limits + 1],
-                              matchingCost[r - 1, i - 1, max(epsilon_p1 + 1, 0):epsilon_p1 + limits + 2, max(epsilon_p2 + 1, 0):epsilon_p2 + limits + 2],
-                              matchingCost[r - 1, i - 2, max(epsilon_p1 + 2, 0):epsilon_p1 + limits + 3, max(epsilon_p2 + 2, 0):epsilon_p2 + limits + 3]]
+                tmp = abs(baseArgs[r, i])
 
-                elif i == 1:
-                    mcosts = [matchingCost[r - 1, 1, max(epsilon_p1, 0):epsilon_p1 + limits + 1, max(epsilon_p2, 0):epsilon_p2 + limits + 1],
-                              matchingCost[r - 1, 0, max(epsilon_p1 + 1, 0):epsilon_p1 + limits + 2, max(epsilon_p2 + 1, 0):epsilon_p2 + limits + 2]]
-
-                else: # i == 0
-                    mcosts = [matchingCost[r - 1, 0, max(epsilon_p1, 0):epsilon_p1 + limits + 1, max(epsilon_p2, 0):epsilon_p2 + limits + 1]]
-
-                c_p1, c_p2, tmp = [], [], []
-                for ind, mcost in enumerate(mcosts):
-                    cp1, cp2 = np.unravel_index(np.argmin(mcost), mcost.shape)
-                    tmp.append(mcost[cp1, cp2])
-                    c_p1.append(cp1)
-                    c_p2.append(cp2)
-
-                tmp = np.argmin(tmp)
+                c1_ = np.argmin(_mcosts(tmp, epsilon1, matchingCost1))
+                c3_ = np.argmin(_mcosts(tmp, epsilon3, matchingCost3))
 
                 r = r - 1
                 i = i - tmp
-                epsilon_p1 = epsilon_p1 + c_p1[tmp] + forNewEpsilon[epsilon_p1 + limits][tmp]
-                epsilon_p2 = epsilon_p2 + c_p2[tmp] + forNewEpsilon[epsilon_p2 + limits][tmp]
-                correspondentPointsBase.insert(0, [r, i])
-                correspondentPointsPeripheral1.insert(0, [r, i + epsilon_p1])
-                correspondentPointsPeripheral2.insert(0, [r, i + epsilon_p2])
+                epsilon1 = epsilon1 + c1_[tmp] + forNewEpsilon[epsilon1 + limits][tmp]
+                epsilon3 = epsilon3 + c3_[tmp] + forNewEpsilon[epsilon3 + limits][tmp]
+                correspondentPoints2.insert(0, [r, i])
+                correspondentPoints1.insert(0, [r, i + epsilon1])
+                correspondentPoints3.insert(0, [r, i + epsilon3])
 
-
-            return correspondentPointsBase, correspondentPointsPeripheral1, correspondentPointsPeripheral2
+            return correspondentPoints1, correspondentPoints2
 
         return {'matchingCost': asyncCalc, 'backTrack': asyncBackTrack}
 
