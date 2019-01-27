@@ -413,7 +413,7 @@ class LeftDockWidget(QWidget):
         vboxConfig.addWidget(self.labelCalculationType)
 
         self.comboBoxCalculationType = QComboBox()
-        self.comboBoxCalculationType.addItems(["Independet", "Synchronous Contexts", "Asynchronous Contexts"])
+        self.comboBoxCalculationType.addItems(["Independent", "Synchronous Contexts", "Asynchronous Contexts"])
         self.comboBoxCalculationType.currentIndexChanged.connect(self.comboBoxCalculationTypeChanged)
         vboxConfig.addWidget(self.comboBoxCalculationType)
 
