@@ -28,10 +28,9 @@ class DPgui(QMainWindow):
 
     def setConfig(self):
         # initialixzation
-        self.prevDirVolleyball = None
-        self.prevDirBaseball = None
-        self.prevContextsDirVolleyball = None
-        self.prevContextsDirBaseball = None
+        self.caches = {'prevDirVolleyball':None, 'prevDirBaseball':None,
+                        'prevContextsDirVolleyball':None, 'prevContextsDirBaseball':None}
+        self.configs = {'constraint':None, 'baseBallFps-int':None}
 
         self.done = False
         self.colors = None
@@ -45,26 +44,63 @@ class DPgui(QMainWindow):
 
         if not os.path.exists('./.config'):
             os.mkdir('.config')
+        # cache
+        if not os.path.exists('./.config/gui.cache'):
+            with open('./.config/gui.cache', 'w') as f:
+                for cacheName, cacheValue in self.caches.items():
+                    f.write('{0},{1},\n'.format(cacheName, cacheValue))
 
-        if not os.path.exists('./.config/gui.config'):
-            with open('./.config/gui.config', 'w') as f:
-                f.write('prevDirVolleyball,None,\n')
-                f.write('prevDirBaseball,None,\n')
-                f.write('prevContextsDirVolleyball,None,\n')
-                f.write('prevContextsDirBaseball,None,\n')
-
-        with open('./.config/gui.config', 'r') as f:
+        with open('./.config/gui.cache', 'r') as f:
             lines = f.readlines()
             for line in lines:
                 tmp = line.split(',')
                 if tmp[1] == 'None':
-                    exec ('self.{0} = None'.format(tmp[0]))
+                    exec ('self.caches[\'{0}\'] = None'.format(tmp[0]))
                 else:
-                    exec ('self.{0} = \'{1}\''.format(tmp[0], tmp[1]))
+                    exec ('self.caches[\'{0}\'] = \'{1}\''.format(tmp[0], tmp[1]))
+
+        # config
+        if not os.path.exists('./.config/gui.config'):
+            self.writeConfig()
+        self.readConfig()
 
     def initUI(self):
         self.create_main_frame()
+        self.create_menu()
         self.setleftDock()
+
+    def create_menu(self):
+        # file
+        self.file_menu = self.menuBar().addMenu("&File")
+
+        #input_action = self.create_action("&Input", slot=self.input_trcfile, shortcut="Ctrl+I", tip="Input csv file")
+        #self.add_actions(self.file_menu, (input_action,))
+
+        saveVideo_action = self.create_action("Save as video", slot=self.saveVideo, shortcut="Ctrl+S", tip="save DP result as video")
+        self.add_actions(self.file_menu, (saveVideo_action,))
+        saveVideo_action.setEnabled(False)
+
+        quit_action = self.create_action("&Quit", slot=self.close, shortcut="Ctrl+Q", tip="Close the application")
+        self.add_actions(self.file_menu, (None, quit_action))
+
+        # help
+        self.help_menu = self.menuBar().addMenu("&Help")
+        about_action = self.create_action("&About", shortcut='F1', slot=self.show_about, tip='About the demo')
+        self.add_actions(self.help_menu, (about_action,))
+
+        # setting
+        self.setting_menu = self.menuBar().addMenu("&Setting")
+        preference_action = self.create_action("Preferences", shortcut='Ctrl+,', slot=self.preference, tip='set preferences')
+        self.add_actions(self.setting_menu, (preference_action,))
+
+        # edit
+        self.edit_menu = self.menuBar().addMenu("&Edit")
+
+        nextframe_action = self.create_action("Next Frame", slot=self.nextframe, shortcut="Ctrl+N", tip="show next frame")
+        self.add_actions(self.edit_menu, (nextframe_action,))
+
+        previousframe_action = self.create_action("Previous Frame", slot=self.previousframe, shortcut="Ctrl+P", tip="show previous frame")
+        self.add_actions(self.edit_menu, (previousframe_action,))
 
     def create_main_frame(self):
         self.main_frame = QWidget()
@@ -167,6 +203,66 @@ class DPgui(QMainWindow):
         self.main_frame.setLayout(vbox)
         self.setCentralWidget(self.main_frame)
 
+    # menu event
+    def add_actions(self, target, actions):
+        for action in actions:
+            if action is None:
+                target.addSeparator()
+            else:
+                target.addAction(action)
+
+    def create_action(self, text, slot=None, shortcut=None,
+                      icon=None, tip=None, checkable=False, ):
+        action = QAction(text, self)
+        if icon is not None:
+            action.setIcon(QIcon(":/%s.png" % icon))
+        if shortcut is not None:
+            action.setShortcut(shortcut)
+        if tip is not None:
+            action.setToolTip(tip)
+            action.setStatusTip(tip)
+        if slot is not None:
+            action.triggered.connect(slot)
+        if checkable:
+            action.setCheckable(True)
+        return action
+
+    def show_about(self):  # show detail of this application
+        msg = """ A demo of using PyQt with matplotlib:
+
+         * Use the matplotlib navigation bar
+         * Add values to the text box and press Enter (or click "Draw")
+         * Show or hide the grid
+         * Drag the slider to modify the width of the bars
+         * Save the plot to a file using the File menu
+         * Click on a bar to receive an informative message
+        """
+        QMessageBox.about(self, "About the demo", msg.strip())
+
+    def saveVideo(self):
+        pass
+
+    def preference(self):
+        preferenceDialog = PreferenceDialog(self)
+        preferenceDialog.setWindowModality(Qt.ApplicationModal)
+        preferenceDialog.show()
+
+    # config
+    def readConfig(self):
+        with open('./.config/gui.config', 'r') as f:
+            lines = f.readlines()
+            for line in lines:
+                tmp = line.split(',')
+                if tmp[1] == 'None':
+                    exec ('self.configs[\'{0}\'] = None'.format(tmp[0]))
+                else:
+                    exec ('self.configs[\'{0}\'] = \'{1}\''.format(tmp[0], tmp[1]))
+
+    def writeConfig(self):
+        with open('./.config/gui.config', 'w') as f:
+            for configName, configValue in self.configs.items():
+                f.write('{0},{1},\n'.format(configName, configValue))
+
     # data
     def reset(self):
         self.done = False
@@ -188,7 +284,6 @@ class DPgui(QMainWindow):
         self.groupzrange.setEnabled(False)
         self.leftdockwidget.buttonPlay.setEnabled(False)
         self.leftdockwidget.buttonPause.setEnabled(False)
-
 
     # left dock
     def setleftDock(self):
@@ -383,11 +478,14 @@ class DPgui(QMainWindow):
         self.slider.setValue(value)
 
     def closeEvent(self, a0: QCloseEvent):
-        with open('./.config/gui.config', 'w') as f:
-            f.write('prevDirVolleyball,{0},\n'.format(self.prevDirVolleyball))
-            f.write('prevDirBaseball,{0},\n'.format(self.prevDirBaseball))
-            f.write('prevContextsDirVolleyball,{0},\n'.format(self.prevContextsDirVolleyball))
-            f.write('prevContextsDirBaseball,{0},\n'.format(self.prevContextsDirBaseball))
+        # cache
+        with open('./.config/gui.cache', 'w') as f:
+            for cacheName, cacheValue in self.caches.items():
+                f.write('{0},{1},\n'.format(cacheName, cacheValue))
+
+        # config
+        self.writeConfig()
+
 
 class LeftDockWidget(QWidget):
     def __init__(self, parent):
@@ -536,12 +634,12 @@ class LeftDockWidget(QWidget):
         basedir = ''
         if self.comboBoxSkeltonType.currentText() == 'Volleyball':
             filters = "TRC files(*.trc)"
-            if self.parent.prevDirVolleyball is not None:
-                basedir = self.parent.prevDirVolleyball
+            if self.parent.caches['prevDirVolleyball'] is not None:
+                basedir = self.parent.caches['prevDirVolleyball']
         elif self.comboBoxSkeltonType.currentText() == 'Baseball':
             filters = "CSV files(*.csv)"
-            if self.parent.prevDirVolleyball is not None:
-                basedir = self.parent.prevDirBaseball
+            if self.parent.caches['prevDirBaseball'] is not None:
+                basedir = self.parent.caches['prevDirBaseball']
         else:
             filters = "TRC files(*.trc)"
 
@@ -550,7 +648,7 @@ class LeftDockWidget(QWidget):
             if refPath != "":
                 self.refPath = refPath
                 self.labelRealRefPath.setText(os.path.basename(self.refPath))
-                exec('self.parent.prevDir{0} = os.path.dirname(self.refPath)'.format(self.comboBoxSkeltonType.currentText()))
+                exec('self.parent.caches[\'prevDir{0}\'] = os.path.dirname(self.refPath)'.format(self.comboBoxSkeltonType.currentText()))
             else:
                 self.refPath = None
                 self.labelRealRefPath.setText("No selected")
@@ -561,7 +659,7 @@ class LeftDockWidget(QWidget):
             if inpPath != "":
                 self.inpPath = inpPath
                 self.labelRealInpPath.setText(os.path.basename(self.inpPath))
-                exec('self.parent.prevDir{0} = os.path.dirname(self.inpPath)'.format(self.comboBoxSkeltonType.currentText()))
+                exec('self.parent.caches[\'prevDir{0}\'] = os.path.dirname(self.inpPath)'.format(self.comboBoxSkeltonType.currentText()))
             else:
                 self.inpPath = None
                 self.labelRealInpPath.setText("No selected")
@@ -620,11 +718,11 @@ class LeftDockWidget(QWidget):
         basedir = ''
         filters = "CONTEXTS files(*.contexts)"
         if self.comboBoxSkeltonType.currentText() == 'Volleyball':
-            if self.parent.prevContextsDirVolleyball is not None:
-                basedir = self.parent.prevContextsDirVolleyball
+            if self.parent.caches['prevContextsDirVolleyball'] is not None:
+                basedir = self.parent.caches['prevContextsDirVolleyball']
         elif self.comboBoxSkeltonType.currentText() == 'Baseball':
-            if self.parent.prevContextsDirBaseball is not None:
-                basedir = self.parent.prevContextsDirBaseball
+            if self.parent.caches['prevContextsDirBaseball'] is not None:
+                basedir = self.parent.caches['prevContextsDirBaseball']
 
         contextsPath, __ = QFileDialog.getOpenFileName(self, 'load file', basedir, filters)
         # check whether contexts file is valid or not
@@ -650,7 +748,7 @@ class LeftDockWidget(QWidget):
             self.contextsSet['type'] = contextsPath
             self.contextsSet['contexts'] = checkResult
             self.labelContextsType.setText(os.path.basename(contextsPath))
-            exec('self.parent.prevContextsDir{0} = os.path.dirname(contextsPath)'.format(
+            exec('self.parent.caches[\'prevContextsDir{0}\'] = os.path.dirname(contextsPath)'.format(
                 self.comboBoxSkeltonType.currentText()))
         else:
             self.contextsSet['type'] = 'Default'
@@ -766,3 +864,33 @@ class LoadingDialog(QMainWindow):
         self.parent.parent.initialDraw(self.inpData, colors)
         self.close()
 
+class PreferenceDialog(QMainWindow):
+    def __init__(self, parent=None):
+        QMainWindow.__init__(self, parent)
+        self.parent = parent
+
+        self.initUI()
+
+    def initUI(self):
+        self.mainWidget = QWidget(self)
+
+        hbox = QHBoxLayout()
+
+        self.movie_screen = QLabel()
+        gifpath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "calculating.gif")
+        self.movie = QMovie(gifpath, QByteArray(), self)
+        self.movie.setCacheMode(QMovie.CacheAll)
+        self.movie.setSpeed(100)
+        self.movie_screen.setMovie(self.movie)
+        self.movie.start()
+        hbox.addWidget(self.movie_screen)
+
+        #self.textEdit = QTextEdit()
+        self.textEdit = QLabel()
+        hbox.addWidget(self.textEdit)
+
+        self.mainWidget.setLayout(hbox)
+        self.setCentralWidget(self.mainWidget)
+
+    def closeEvent(self, a0: QCloseEvent):
+        pass
