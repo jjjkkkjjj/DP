@@ -87,9 +87,11 @@ class SyncContextDP(DP):
             self.correspondents[joint] = correspondentPoints
             self.totalCosts[joint] = np.nanmin(matchingCost[self.reference.frame_max - 1]) / self.reference.frame_max
 
-    def resultVisualization(self, fps=240, maximumGapTime=0.1, resultDir=""):
+    def resultVisualization(self, kind='visualization', fps=240, maximumGapTime=0.1, resultDir=""):
+        if 'visualization' not in kind:
+            raise NameError('{0} is invalid kind name'.format(kind))
         # calc sync dp for each context
-        myMatchingCostFunc = constraint('visualization')
+        myMatchingCostFunc = constraint(kind)
         self.syncCorrespondInitial(myMatchingCostFunc=myMatchingCostFunc)
 
         # revert context into each joint
@@ -199,9 +201,9 @@ class AsyncContextDP(DP):
             self.correspondents[joint] = correspondentPoints
             self.totalCosts[joint] = np.nanmin(matchingCost[self.reference.frame_max - 1]) / self.reference.frame_max
     """
-    def resultVisualization(self, fps=240, maximumGapTime=0.1, resultDir=""):
+    def resultVisualization(self, kind='visualization', fps=240, maximumGapTime=0.1, resultDir=""):
         # calc sync dp for each context
-        myMatchingCostFunc = constraint('visualization')
+        myMatchingCostFunc = constraint(kind)
         self.syncCorrespondInitial(myMatchingCostFunc=myMatchingCostFunc)
 
         # revert context into each joint

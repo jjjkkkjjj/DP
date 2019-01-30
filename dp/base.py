@@ -73,7 +73,7 @@ class DPBase(object):
                 return None, None
 
         #for check
-        #correspondentPointses = backTrackFunc(matchingCost=matchingCost, refDatas=refDatas, inpDatas=inpDatas)
+        correspondentPointses = backTrackFunc(matchingCost=matchingCost, refDatas=refDatas, inpDatas=inpDatas)
 
         try:
             correspondentPointses = backTrackFunc(matchingCost=matchingCost, refDatas=refDatas, inpDatas=inpDatas)
