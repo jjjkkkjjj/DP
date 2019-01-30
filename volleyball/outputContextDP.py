@@ -30,16 +30,16 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
                 ['R_rib', 'R_ASIS'],
                 ['L_rib', 'L_ASIS'],
                 ['R_PSIS', 'L_PSIS']]
-    kinds = ['async3-lined',
-            'async3-lined',
-            'async3-lined',
-            'async3-lined',
-            'async3-lined',
-            'async3-lined',
-            'async2',
-            'async2',
-            'async2']
-    
+    kinds = ['async3-lined-asynm',
+            'async3-lined-asynm',
+            'async3-lined-asynm',
+            'async3-lined-asynm',
+            'async3-lined-asynm',
+            'async3-lined-asynm',
+            'async2-asynm',
+            'async2-asynm',
+            'async2-asynm']
+
     #contexts = [['R_PSIS', 'L_PSIS']]
     #kinds = ['async2']
     #contexts = [['R_out_elbow', 'R_in_elbow', 'R_backshoulder']]
@@ -87,7 +87,7 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
             view.show(x=X, y=Y, xtime=refData.frame_max, ytime=inpData.frame_max,
                       title='overlayed all matching costs', legend=True, correspondLine=False,
                       savepath=resultDir + "/overlayed-all-matching-costs.png")
-            exit()
+            
 
         elif method == 'async-visualization':
             fps = 240

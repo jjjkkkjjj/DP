@@ -84,8 +84,15 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
                       savepath=resultDir + "/overlayed-all-matching-costs.png")
         elif method == 'fixedInitial-independent-visualization':
             fps = 240
-            colors = DP_.resultVisualization(fps=fps, maximumGapTime=0.1, resultDir=resultDir)
-            #DP_.input.show(fps=fps, colors=colors)
+            colors = DP_.resultVisualization(kind='visualization', fps=fps, maximumGapTime=0.1, resultDir=resultDir)
+            DP_.input.show(fps=fps, colors=colors)
+            DP_.input.save(path=resultDir + "/R_{0}-I_{1}.mp4".format(refData.name, inpData.name), fps=fps, colors=colors, saveonly=True)
+
+        elif method == 'fixedInitial-independent-visualization2':
+            fps = 240
+            colors = DP_.resultVisualization(kind='visualization2', fps=fps, maximumGapTime=0.1, resultDir=resultDir)
+            DP_.input.show(fps=fps, colors=colors)
+            exit()
             DP_.input.save(path=resultDir + "/R_{0}-I_{1}.mp4".format(refData.name, inpData.name), fps=fps, colors=colors, saveonly=True)
 
         else:
@@ -114,4 +121,5 @@ if __name__ == '__main__':
     #main(method='corrcoef')
     #main(method='comp-ind-corrcoef')
     #main(method='fixedInitial-independent')
-    main(method='fixedInitial-independent-visualization')
+    #main(method='fixedInitial-independent-visualization')
+    main(method='fixedInitial-independent-visualization2')

@@ -256,6 +256,79 @@ def constraint(kind='default'):
             exit()
         """
 
+    elif kind == 'visualization2' or kind == 'refskip':
+        def refskipCalc(localCost):
+            matchingCost = np.zeros(localCost.shape)
+            matchingCost[0, :] = localCost[0, :]
+            # pointless part is infinity
+            matchingCost[1:, 0] = np.inf
+            matchingCost[1::2, :] = np.inf
+
+            # all pathes part (other)
+            referenceTimeMax = localCost.shape[0]
+            for referenceTime in range(2, referenceTimeMax, 2):
+                matchingCost[referenceTime, 1] = localCost[referenceTime, 1] + matchingCost[referenceTime - 2, 0]
+                matchingCost[referenceTime, 2] = localCost[referenceTime, 2] + np.minimum(
+                    matchingCost[referenceTime - 2, 0], matchingCost[referenceTime - 2, 1])
+                matchingCost[referenceTime, 3] = localCost[referenceTime, 3] + np.min(
+                    [matchingCost[referenceTime - 2, 0],
+                     matchingCost[referenceTime - 2, 1],
+                     matchingCost[referenceTime - 2, 2]])
+                matchingCost[referenceTime, 4:] = localCost[referenceTime, 4:] + np.minimum.reduce(
+                    [matchingCost[referenceTime - 2, 3:-1],
+                     matchingCost[referenceTime - 2, 2:-2],
+                     matchingCost[referenceTime - 2, 1:-3],
+                     matchingCost[referenceTime - 2, :-4]])
+            if referenceTimeMax % 2 == 0:
+                matchingCost[referenceTimeMax - 1, :] = matchingCost[referenceTimeMax - 2, :]
+            if np.sum(np.isinf(matchingCost[referenceTimeMax - 1, :])) == matchingCost.shape[1]: # all matching cost are infinity
+                raise OverflowError('all matching cost are infinity')
+            return matchingCost
+
+        if kind == 'refskip':
+            def syncBackTrack(**kwargs):
+                localCost = kwargs['localCost']
+                matchingCost = kwargs['matchingCost']
+                inputFinFrameBackTracked = kwargs['inputFinFrameBackTracked']
+
+                correspondentPoints = []
+                r, i = matchingCost.shape[0] - 1, inputFinFrameBackTracked
+                correspondentPoints.append([r, i])
+
+                while r > 0:
+                    tmp = matchingCost[r - 2, max(0, i - 4):i - 1]  # i-4~i-1
+                    tmp = np.argmin(tmp[::-1]) + 1  # value substracting i
+                    # correspondentPoints.insert(0, [r - 1, i - tmp/2])
+                    r = r - 2
+                    i = i - tmp
+                    correspondentPoints.insert(0, [r, i])
+
+                return correspondentPoints
+
+        else:
+            def syncBackTrack(**kwargs):
+                localCost = kwargs['localCost']
+                matchingCost = kwargs['matchingCost']
+                inputFinFrameBackTracked = kwargs['inputFinFrameBackTracked']
+
+                correspondentPoints = []
+                r, i = matchingCost.shape[0] - 1, inputFinFrameBackTracked
+                correspondentPoints.append([r, i])
+
+                while r > 0:
+                    tmp = matchingCost[r - 2, max(0, i - 4):i - 1]  # i-4~i-1
+                    tmp = np.argmin(tmp[::-1]) + 1  # value substracting i
+                    for tmp_i in range(1, tmp):
+                        correspondentPoints.insert(0, [r - tmp_i*2/tmp, i - tmp_i])
+                    # correspondentPoints.insert(0, [r - 1, i - tmp/2])
+                    r = r - 2
+                    i = i - tmp
+                    correspondentPoints.insert(0, [r, i])
+
+                return correspondentPoints
+
+        return {'matchingCost': refskipCalc, 'backTrack': syncBackTrack}
+
     elif kind == 'async2': # greedy method
         pass
     else:
@@ -263,185 +336,7 @@ def constraint(kind='default'):
 
 
 def lowMemoryConstraint(kind='default'):
-    if kind == 'default' or kind == 'asynm':
-        def asynmCalc(localCost):
-            matchingCost = np.zeros(localCost.shape)
-            matchingCost[0, :] = localCost[0, :]
-
-            referenceTimeMax = localCost.shape[0]
-            for referenceTime in range(1, referenceTimeMax):
-                matchingCost[referenceTime, 0] = localCost[referenceTime, 0] + matchingCost[referenceTime - 1, 0]
-                matchingCost[referenceTime, 1] = localCost[referenceTime, 1] + np.minimum(
-                    matchingCost[referenceTime - 1, 0],
-                    matchingCost[referenceTime - 1, 1])
-                matchingCost[referenceTime, 2:] = localCost[referenceTime, 2:] + np.minimum.reduce(
-                    [matchingCost[referenceTime - 1, 2:],
-                     matchingCost[referenceTime - 1, 1:-1],
-                     matchingCost[referenceTime - 1, :-2]])
-
-            return matchingCost
-
-        def asynmBackTrack(**kwargs):
-            matchingCost = kwargs['matchingCost']
-            inputFinFrameBackTracked = kwargs['inputFinFrameBackTracked']
-            # back track
-            correspondentPoints = []
-            r, i = matchingCost.shape[0] - 1, inputFinFrameBackTracked
-            correspondentPoints.append([r, i])
-
-            while r > 0 and i > 1:
-                tmp = np.argmin((matchingCost[r - 1, i], matchingCost[r - 1, i - 1],
-                                 matchingCost[r - 1, i - 2]))
-                r = r - 1
-                i = i - tmp
-                correspondentPoints.insert(0, [r, i])
-
-            while r > 0 and i > 0:
-                tmp = np.argmin((matchingCost[r - 1, i], matchingCost[r - 1, i - 1]))
-                r = r - 1
-                i = i - tmp
-                correspondentPoints.insert(0, [r, i])
-
-            while r > 0:
-                r = r - 1
-                i = 0
-                correspondentPoints.insert(0, [r, i])
-
-            return correspondentPoints
-
-        return {'matchingCost': asynmCalc, 'backTrack': asynmBackTrack}
-
-    elif kind == 'visualization' or kind == 'sync':
-        def syncCalc(localCost):
-            matchingCost = np.zeros(localCost.shape)
-            matchingCost[0, :] = localCost[0, :]
-            # pointless part is infinity
-            matchingCost[1:, 0] = np.inf
-            # only m(r-1,i-1) + 2*l(r,i) part (only (1,1))
-            matchingCost[1, 1] = matchingCost[0, 0] + 2*localCost[1, 1]
-            # m(r-1,i-2) + 2*l(r,i-1) + l(r,i), m(r-1,i-1) + 2*l(r,i) part ((1,2:))
-            matchingCost[1, 2:] = np.minimum(matchingCost[0, :-2] + 2*localCost[1, 1:-1] + localCost[1, 2:],
-                                             matchingCost[0, 1:-1] + 2*localCost[1, 2:])
-            # m(r-1,i-1) + 2*l(r,i), m(r-2,i-1) + 2*l(r-1,i) + l(r,i) part ((2:,1))
-            matchingCost[2:, 1] = np.minimum(matchingCost[1:-1, 0] + 2*localCost[2:, 1],
-                                             matchingCost[0:-2, 0] + 2*localCost[1:-1, 1] + localCost[2:, 1])
-            # all pathes part (other)
-            referenceTimeMax = localCost.shape[0]
-            for referenceTime in range(2, referenceTimeMax):
-                matchingCost[referenceTime, 2:] = np.minimum.reduce(
-                    [matchingCost[referenceTime - 2, 1:-1] + 2*localCost[referenceTime - 1, 2:] + localCost[referenceTime, 2:],
-                     matchingCost[referenceTime - 1, 1:-1] + 2*localCost[referenceTime, 2:],
-                     matchingCost[referenceTime - 1, :-2] + 2*localCost[referenceTime, 1:-1] + localCost[referenceTime, 2:]])
-            if np.sum(np.isinf(matchingCost[referenceTimeMax - 1, :])) == matchingCost.shape[1]: # all matching cost are infinity
-                raise OverflowError('all matching cost are infinity')
-            return matchingCost
-        if kind == 'sync':
-            def syncBackTrack(**kwargs):
-                localCost = kwargs['localCost']
-                matchingCost = kwargs['matchingCost']
-                inputFinFrameBackTracked = kwargs['inputFinFrameBackTracked']
-
-                correspondentPoints = []
-                r, i = matchingCost.shape[0] - 1, inputFinFrameBackTracked
-                correspondentPoints.append([r, i])
-
-                while r > 1 and i > 1:
-                    tmp = np.argmin((matchingCost[r - 2, i - 1] + 2 * localCost[r - 1, i],
-                                     matchingCost[r - 1, i - 1] + localCost[r, i],
-                                     matchingCost[r - 1, i - 2] + 2 * localCost[r, i - 1]))
-
-                    if tmp == 0:
-                        correspondentPoints.insert(0, [r - 1, i])
-                        r = r - 2
-                        i = i - 1
-                        correspondentPoints.insert(0, [r, i])
-                    elif tmp == 1:
-                        r = r - 1
-                        i = i - 1
-                        correspondentPoints.insert(0, [r, i])
-                    else:
-                        correspondentPoints.insert(0, [r, i - 1])
-                        r = r - 1
-                        i = i - 2
-                        correspondentPoints.insert(0, [r, i])
-
-                if r == 2 and i == 1:
-                    correspondentPoints.insert(0, [r - 1, i])
-                    r = r - 2
-                    i = i - 1
-                    correspondentPoints.insert(0, [r, i])
-                elif r == 1 and i == 1:
-                    correspondentPoints.insert(0, [r - 1, i - 1])
-                elif r == 1 and i > 1:
-                    tmp = np.argmin((matchingCost[r - 1, i - 1] + localCost[r, i],
-                                     matchingCost[r - 1, i - 2] + 2 * localCost[r, i - 1]))
-
-                    if tmp == 0:
-                        r = r - 1
-                        i = i - 1
-                        correspondentPoints.insert(0, [r, i])
-                    elif tmp == 1:
-                        correspondentPoints.insert(0, [r, i - 1])
-                        r = r - 1
-                        i = i - 2
-                        correspondentPoints.insert(0, [r, i])
-
-                return correspondentPoints
-        else: # visualization, all input time are matched
-            def syncBackTrack(**kwargs):
-                localCost = kwargs['localCost']
-                matchingCost = kwargs['matchingCost']
-                inputFinFrameBackTracked = kwargs['inputFinFrameBackTracked']
-
-                correspondentPoints = []
-                r, i = matchingCost.shape[0] - 1, inputFinFrameBackTracked
-                correspondentPoints.append([r, i])
-
-                while r > 1 and i > 1:
-                    tmp = np.argmin((matchingCost[r - 2, i - 1] + 2 * localCost[r - 1, i],
-                                     matchingCost[r - 1, i - 1] + localCost[r, i],
-                                     matchingCost[r - 1, i - 2] + 2 * localCost[r, i - 1]))
-
-                    if tmp == 0: # slope = 2 (d(inp)/d(ref))
-                        r = r - 2
-                        i = i - 1
-                        correspondentPoints.insert(0, [r, i])
-                    elif tmp == 1: # slope = 1 (d(inp)/d(ref))
-                        r = r - 1
-                        i = i - 1
-                        correspondentPoints.insert(0, [r, i])
-                    else: # slope = 1/2 (d(inp)/d(ref))
-                        correspondentPoints.insert(0, [r, i - 1])
-                        r = r - 1
-                        i = i - 2
-                        correspondentPoints.insert(0, [r, i])
-
-
-                if r == 2:
-                    r = r - 2
-                    i = i - 1
-                    correspondentPoints.insert(0, [r, i])
-                elif r == 1 and i == 1:
-                    correspondentPoints.insert(0, [r - 1, i - 1])
-                elif r == 1 and i > 1:
-                    tmp = np.argmin((matchingCost[r - 1, i - 1] + localCost[r, i],
-                                     matchingCost[r - 1, i - 2] + 2 * localCost[r, i - 1]))
-
-                    if tmp == 0:
-                        r = r - 1
-                        i = i - 1
-                        correspondentPoints.insert(0, [r, i])
-                    elif tmp == 1:
-                        correspondentPoints.insert(0, [r, i - 1])
-                        r = r - 1
-                        i = i - 2
-                        correspondentPoints.insert(0, [r, i])
-
-                return correspondentPoints
-
-        return {'matchingCost': syncCalc, 'backTrack': syncBackTrack}
-
-    elif kind == 'async2':
+    if kind == 'async2-asynm':
         limits = 2
         def _async2LocalCost(refDataBase, refDataPeripheral, inpDataBase, inpDataPeripheral):
             R, I = refDataBase.shape[0], inpDataBase.shape[0]
@@ -620,7 +515,7 @@ def lowMemoryConstraint(kind='default'):
 
         return {'matchingCost': asyncCalc, 'backTrack': asyncBackTrack}
 
-    elif kind == 'async3-lined':
+    elif kind == 'async3-lined-asynm':
         limits = 2
         def _async3LocalCost(refDataBase, refDataPeripheral1, refDataPeripheral2, inpDataBase, inpDataPeripheral1, inpDataPeripheral2):
             R, I = refDataBase.shape[0], inpDataBase.shape[0]
@@ -767,5 +662,133 @@ def lowMemoryConstraint(kind='default'):
 
         return {'matchingCost': asyncCalc, 'backTrack': asyncBackTrack}
 
-    else:
-        raise ValueError('{0} is invalid constraint name'.format(kind))
+    elif kind == 'async2-visualization' or kind == 'async2-synm':
+        limits = 2
+        def _async2LocalCost(refDataBase, refDataPeripheral, inpDataBase, inpDataPeripheral):
+            R, I = refDataBase.shape[0], inpDataBase.shape[0]
+
+            localCosts = np.zeros((R, I, 2 * limits + 1))  # (r, i, epsilon)
+            for index, epsilon in enumerate(range(-limits, limits + 1)):
+                # d_{i,j} + d'_{i,j+epsilon}
+                # d_{i,j}
+                localCosts[:, :, index] += cdist(refDataBase, inpDataBase, 'euclidean')
+                # d'_{i,j+epsilon}
+                localCosts[:, -min(0, epsilon):I + min(0, -epsilon), index] += \
+                    cdist(refDataPeripheral, inpDataPeripheral[max(0, epsilon):I - max(0, -epsilon)], 'euclidean')
+                # if j+epsilon is no exist, then inf
+                if epsilon < 0:
+                    localCosts[:, :-epsilon, index] = np.inf
+                elif epsilon == 0:
+                    localCosts[:, :, index] = np.inf
+                else:
+                    localCosts[:, -epsilon:, index] = np.inf
+
+            return localCosts
+
+        def asyncCalc(refDatas, inpDatas):
+            if len(refDatas) != 2 or len(inpDatas) != 2:
+                raise ValueError('The length of both refDatas and inpDatas must be two, but got ref:{0} and inp:{1}'
+                                 .format(len(refDatas), len(inpDatas)))
+            R, I = refDatas[0].shape[0], inpDatas[0].shape[0]
+
+            localCost = _async2LocalCost(refDatas[0], refDatas[1], inpDatas[0], inpDatas[1])
+            matchingCost = np.zeros((R, I, 2 * limits + 1))
+            matchingCost[0, :, :] = localCost[0, :, :]
+            # use slice instead of constraintInds = np.array([[0, 1, 2], [-1, 0, 1], [-2, -1, 0]])
+            for r in range(1, R):
+                # i = 0
+                for index, epsilon in enumerate(range(-limits, limits + 1)):
+                    matchingCost[r, 0, index] = localCost[r, 0, index] + np.min(
+                        matchingCost[r - 1, 0, max(epsilon, 0):index + 1])
+                    # i = 1
+                    # for index, epsilon in enumerate(range(-limits, limits + 1)):
+                    matchingCost[r, 1, index] = localCost[r, 1, index] + np.min(
+                        np.concatenate([matchingCost[r - 1, 1, max(epsilon, 0):index + 1],
+                                        matchingCost[r - 1, 0, max(epsilon + 1, 0):index + 2]]))
+
+                    # i = 2...
+                    # for index, epsilon in enumerate(range(-limits, limits + 1)):
+                    matchingCost[r, 2:, index] = localCost[r, 2:, index] + np.minimum.reduce(np.concatenate(
+                        [matchingCost[r - 1, 2:, max(epsilon, 0):index + 1],
+                         matchingCost[r - 1, 1:-1, max(epsilon + 1, 0):index + 2],
+                         matchingCost[r - 1, :-2, max(epsilon + 2, 0):index + 3]], axis=1), axis=1)
+
+            if np.sum(np.isinf(matchingCost[R - 1, :, :])) == matchingCost.shape[1] * matchingCost.shape[
+                2]:  # all matching cost are infinity
+                raise OverflowError('all matching cost are infinity')
+            return matchingCost
+
+        def asyncBackTrack(**kwargs):
+            refDatas = kwargs['refDatas']
+            inpDatas = kwargs['inpDatas']
+            matchingCost = kwargs['matchingCost']
+            # inputFinFrameBackTracked, epsilonFinFrameBackTracked = kwargs['argsFinFrameBackTracked']
+            inputFinFrameBackTracked, epsilonFinFrameBackTracked = np.unravel_index(
+                np.nanargmin(matchingCost[matchingCost.shape[0] - 1]),
+                matchingCost[matchingCost.shape[0] - 1].shape)
+
+            correspondentPoints1, correspondentPoints2 = [], []
+            r, i, epsilon = matchingCost.shape[0] - 1, inputFinFrameBackTracked, epsilonFinFrameBackTracked - limits
+            correspondentPoints1.append([r, i])
+            correspondentPoints2.append([r, i + epsilon])
+
+            """
+            epsilon\i| i     i-1   i-2(tmp=0,1,2)
+            -------------------------
+                -2    | e+c   e+c   e+c
+                -1    | e+c-1 e+c-1 e+c
+                0     | e+c-2 e+c-1 e+c
+                1     | e+c-2 e+c-1 e+c
+                2     | e+c-2 e+c-1 e+c
+            (epsilon + limits=0,...,4)
+            """
+
+            forNewEpsilon = [[0, 0, 0],
+                             [-1, -1, 0],
+                             [-2, -1, 0],
+                             [-2, -1, 0],
+                             [-2, -1, 0]]
+
+            while r > 0:
+                if i > 1:
+                    mcosts = [matchingCost[r - 1, i, max(epsilon, 0):epsilon + limits + 1],
+                              matchingCost[r - 1, i - 1, max(epsilon + 1, 0):epsilon + limits + 2],
+                              matchingCost[r - 1, i - 2, max(epsilon + 2, 0):epsilon + limits + 3]]
+                    c_, tmp = [], []
+                    for ind, mcost in enumerate(mcosts):
+                        c_.append(np.argmin(mcost))
+                        tmp.append(mcost[c_[ind]])
+
+                    tmp = np.argmin(tmp)
+
+                    r = r - 1
+                    i = i - tmp
+                    epsilon = epsilon + c_[tmp] + forNewEpsilon[epsilon + limits][tmp]
+                    correspondentPoints1.insert(0, [r, i])
+                    correspondentPoints2.insert(0, [r, i + epsilon])
+
+                elif i == 1:
+                    mcosts = [matchingCost[r - 1, 1, max(epsilon, 0):epsilon + limits + 1],
+                              matchingCost[r - 1, 0, max(epsilon + 1, 0):epsilon + limits + 2]]
+
+                    c_, tmp = [], []
+                    for ind, mcost in enumerate(mcosts):
+                        c_.append(np.argmin(mcost))
+                        tmp.append(mcost[c_[ind]])
+
+                    tmp = np.argmin(tmp)
+
+                    r = r - 1
+                    i = i - tmp
+                    epsilon = epsilon + c_[tmp] + forNewEpsilon[epsilon + limits][tmp]
+                    correspondentPoints1.insert(0, [r, i])
+                    correspondentPoints2.insert(0, [r, i + epsilon])
+
+                else:  # i == 0
+                    c = np.argmin(matchingCost[r - 1, 0, max(epsilon, 0):epsilon + limits + 1])
+
+                    r = r - 1
+                    # i = i
+                    epsilon = epsilon + c + forNewEpsilon[epsilon + limits][0]
+                    correspondentPoints1.insert(0, [r, i])
+                    correspondentPoints2.insert(0, [r, i + epsilon])

@@ -233,8 +233,10 @@ class DP(DPBase):
 
         return x, y
 
-    def resultVisualization(self, fps=240, maximumGapTime=0.1, resultDir=""):
-        myMatchingCostFunc = constraint(kind='visualization')
+    def resultVisualization(self, kind='visualization', fps=240, maximumGapTime=0.1, resultDir=""):
+        if 'visualization' not in kind:
+            raise NameError('{0} is invalid kind name'.format(kind))
+        myMatchingCostFunc = constraint(kind=kind)
 
         self.calcCorrespondInitial(showresult=False, resultdir=resultDir, myMatchingCostFunc=myMatchingCostFunc,
                                    correspondLine=True)
@@ -256,7 +258,7 @@ class DP(DPBase):
                 colors.append(hsv_to_rgb(hsv))
                 continue
             ref = Ref[joint]
-            inp = Inp[joint]
+            inp = Inp[joint].astype('int')
 
             init = inp[0]
             fin = inp[-1]

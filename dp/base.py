@@ -19,6 +19,8 @@ class DPBase(object):
 
         matchingCostFunc, backTrackFunc = check_myMatchingCostFunc(myMatchingCostFunc)
 
+        # for check
+        #matchingCost = matchingCostFunc(localCost)
         try:
             matchingCost = matchingCostFunc(localCost)
         except:
@@ -26,6 +28,12 @@ class DPBase(object):
                 sys.stdout.write("\rWarning:{0}:{1}\nskip...\n".format(name, sys.exc_info()))
                 sys.stdout.flush()
                 return None, None
+        """
+        # for check
+        correspondentPoints = backTrackFunc(matchingCost=matchingCost, localCost=localCost,
+                                                inputFinFrameBackTracked=np.nanargmin(
+                                                    matchingCost[matchingCost.shape[0] - 1]))
+        """
 
         try:
             correspondentPoints = backTrackFunc(matchingCost=matchingCost, localCost=localCost,
