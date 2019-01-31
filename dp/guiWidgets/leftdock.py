@@ -225,9 +225,14 @@ class LeftDockWidget(QWidget):
                 DP_ = self.dpModule['DP'](**kwargs)
             elif self.calcType == 'Synchronous Contexts':
                 DP_ = self.dpModule['SyncContextDP'](self.contextsSet['contexts'], **kwargs)
+                implementKwargs['kind'] = 'visualization2'
             elif self.calcType == 'Asynchronous Contexts':
                 DP_ = self.dpModule['ASyncContextDP'](self.contextsSet['contexts'], **kwargs)
                 # add kinds
+                kinds = []
+                for context in self.contextsSet:
+                    kinds.append('async{0}-visualization2'.format(len(context)))
+                implementKwargs['kinds'] = kinds
 
             else:
                 raise NameError("{0} is invalid calculation type".format(self.calcType))

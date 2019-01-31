@@ -2,6 +2,7 @@ from dp.dp import DP
 from dp.data import Data
 from dp.utils import csvReader, contexts
 from dp.contextdp import SyncContextDP, AsyncContextDP
+from dp.constraint import constraint
 import sys
 import os
 import platform
@@ -16,7 +17,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import numpy as np
-from .guiWidgets.preference import PreferenceDialog
+from .guiWidgets.preference import PreferenceDialog, readPreference, writePreference
 from .guiWidgets.leftdock import LeftDockWidget
 import cv2
 
@@ -45,7 +46,7 @@ class DPgui(QMainWindow):
         self.frame_max = 0
 
         # for leftdock
-        self.dpModule = {'contexts': contexts, 'csvReader': csvReader, 'Data': Data,
+        self.dpModule = {'contexts': contexts, 'csvReader': csvReader, 'Data': Data, 'constraint': constraint,
                          'DP': DP, 'SyncContextDP': SyncContextDP, 'AsyncContextDP': AsyncContextDP}
 
         if not os.path.exists('./.config'):
@@ -69,6 +70,8 @@ class DPgui(QMainWindow):
         if not os.path.exists('./.config/gui.config'):
             self.writeConfig()
         self.readConfig()
+
+        #self.preferences = readPreference()
 
     def initUI(self):
         self.create_main_frame()
@@ -249,7 +252,7 @@ class DPgui(QMainWindow):
         pass
 
     def preference(self):
-        preferenceDialog = PreferenceDialog(self)
+        preferenceDialog = PreferenceDialog(self.dpModule['constraint'], self)
         preferenceDialog.setWindowModality(Qt.ApplicationModal)
         preferenceDialog.show()
 

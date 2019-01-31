@@ -61,7 +61,7 @@ class LoadingDialog(QMainWindow):
         hbox = QHBoxLayout()
 
         self.movie_screen = QLabel()
-        gifpath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "calculating.gif")
+        gifpath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "icon", "calculating.gif")
         self.movie = QMovie(gifpath, QByteArray(), self)
         self.movie.setCacheMode(QMovie.CacheAll)
         self.movie.setSpeed(100)
