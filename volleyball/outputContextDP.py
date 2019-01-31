@@ -20,7 +20,7 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
     reffile = referenceReader("{0}-{1}.csv".format(name, serve), Dir, superDir=name)
     refData = Data()
     refData.set_from_trc(os.path.join(Dir, reffile), lines='volleyball')
-    """
+
     contexts = [['head', 'R_ear', 'L_ear'],
                 ['R_hand', 'R_in_wrist', 'R_out_wrist'],
                 ['L_hand', 'L_in_wrist', 'L_out_wrist'],
@@ -31,16 +31,16 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
                 ['L_rib', 'L_ASIS'],
                 ['R_PSIS', 'L_PSIS']]
 
-    kinds = ['async3-lined-asynm',
-            'async3-lined-asynm',
-            'async3-lined-asynm',
-            'async3-lined-asynm',
-            'async3-lined-asynm',
-            'async3-lined-asynm',
-            'async2-asynm',
-            'async2-asynm',
-            'async2-asynm']
-    
+    kinds = ['async3-visualization2',
+            'async3-visualization2',
+            'async3-visualization2',
+            'async3-visualization2',
+            'async3-visualization2',
+            'async3-visualization2',
+            'async2-visualization2',
+            'async2-visualization2',
+            'async2-visualization2']
+    """
     kinds = ['async3-lined-asynm',
              'async3-lined-asynm',
              'async3-lined-asynm',
@@ -53,8 +53,8 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
     """
     #contexts = [['R_PSIS', 'L_PSIS']]
     #kinds = ['async2-visualization2']
-    contexts = [['R_out_elbow', 'R_in_elbow', 'R_backshoulder']]
-    kinds = ['async3-visualization2']
+    #contexts = [['R_out_elbow', 'R_in_elbow', 'R_backshoulder']]
+    #kinds = ['async3-visualization2']
 
     for i in range(initFileNum, finFileNum + 1):
         sys.stdout.write("\rcalculating now... {0}/{1}".format(i - initFileNum, finFileNum + 1 - initFileNum))
@@ -107,10 +107,11 @@ def implementDP(name, serve, method, initFileNum, finFileNum):
                       savepath=resultDir + "/overlayed-all-matching-costs.png")
             exit()
 
-        elif method == 'async-visualization':
+        elif method == 'async-visualization2':
             fps = 240
-            colors = DP_.resultVisualization(fps=fps, maximumGapTime=0.1, resultDir=resultDir)
+            colors = DP_.resultVisualization(kinds=kinds, kind='visualization2', fps=fps, maximumGapTime=0.1, resultDir=resultDir)
             DP_.input.show(fps=fps, colors=colors)
+            exit()
             DP_.input.save(path=resultDir + "/R_{0}-I_{1}.mp4".format(refData.name, inpData.name), fps=fps, colors=colors, saveonly=True)
 
         else:
@@ -129,5 +130,5 @@ if __name__ == '__main__':
     #main(method='sync')
     #main(method='sync-visualization')
     #main(method='sync-visualization2')
-    main(method='async')
-    #main(method='async-visualization')
+    #main(method='async')
+    main(method='async-visualization2')

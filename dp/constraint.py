@@ -692,6 +692,11 @@ def lowMemoryConstraint(kind='default'):
             localCost = _async2LocalCost(refDatas[0], refDatas[1], inpDatas[0], inpDatas[1])
             matchingCost = np.zeros((R, I, 2 * 2 * limits + 1))
             matchingCost[0, :, :] = localCost[0, :, :]
+            # initial conditions initial and fin frame correspond
+            # this means all initial frame are inf excluding epsilon = 0
+            matchingCost[0, :, :] = np.inf
+            matchingCost[0, :, 2*limits] = localCost[0, :, 2*limits]
+
             matchingCost[1::2, :, :] = np.inf
             matchingCost[1:, 0, :] = np.inf
             # use slice instead of constraintInds = np.array([[0, 1, 2], [-1, 0, 1], [-2, -1, 0]])
@@ -719,19 +724,20 @@ def lowMemoryConstraint(kind='default'):
             if R % 2 == 0:
                 matchingCost[R - 1, :, :] = matchingCost[R - 2, :, :]
 
-            if np.sum(np.isinf(matchingCost[R - 1, :, :])) == matchingCost.shape[1] * matchingCost.shape[
-                2]:  # all matching cost are infinity
+            if np.sum(np.isinf(matchingCost[R - 1, :, :])) == matchingCost.shape[1] * matchingCost.shape[2]:  # all matching cost are infinity
                 raise OverflowError('all matching cost are infinity')
             return matchingCost
 
         def asyncBackTrack(**kwargs):
-            refDatas = kwargs['refDatas']
-            inpDatas = kwargs['inpDatas']
-            matchingCost = kwargs['matchingCost']
-            # inputFinFrameBackTracked, epsilonFinFrameBackTracked = kwargs['argsFinFrameBackTracked']
-            inputFinFrameBackTracked, epsilonFinFrameBackTracked = np.unravel_index(
-                np.nanargmin(matchingCost[matchingCost.shape[0] - 1]),
-                matchingCost[matchingCost.shape[0] - 1].shape)
+            refDatas = kwargs.get('refDatas')
+            inpDatas = kwargs.get('inpDatas')
+            matchingCost = kwargs.pop('matchingCost')
+            #inputFinFrameBackTracked, epsilonFinFrameBackTracked = np.unravel_index(
+            #    np.nanargmin(matchingCost[matchingCost.shape[0] - 1]),
+            #    matchingCost[matchingCost.shape[0] - 1].shape)
+            # finish condition
+            inputFinFrameBackTracked = kwargs.get('inputFinFrameBackTracked', np.nanargmin(matchingCost[matchingCost.shape[0] - 1, :, 2*limits]))
+            epsilonFinFrameBackTracked = 2*limits
 
             correspondentPointsBase, correspondentPointsPeripheral = [], []
             r, i, epsilon = matchingCost.shape[0] - 1, inputFinFrameBackTracked, epsilonFinFrameBackTracked - 2*limits
@@ -756,7 +762,7 @@ def lowMemoryConstraint(kind='default'):
             forNewEpsilon = [[0, 0, 0, 0],
                              [-1, -1, -1, 0],
                              [-2, -2, -1, 0],
-                             [-2, -2, -1, 0],
+                             [-3, -2, -1, 0],
                              [-3, -2, -1, 0],
                              [-3, -2, -1, 0],
                              [-3, -2, -1, 0],
@@ -861,6 +867,11 @@ def lowMemoryConstraint(kind='default'):
                                           inpDataBase=inpDatas[0], inpDataPeripheral1=inpDatas[1], inpDataPeripheral2=inpDatas[2])
             matchingCost = np.zeros((R, I, 2*2 * limits + 1, 2*2 * limits + 1))
             matchingCost[0, :, :, :] = localCost[0, :, :, :]
+            # initial conditions initial and fin frame correspond
+            # this means all initial frame are inf excluding epsilon = 0
+            matchingCost[0, :, :, :] = np.inf
+            matchingCost[0, :, 2*limits, 2*limits] = localCost[0, :, 2*limits, 2*limits]
+
             matchingCost[1::2, :, :, :] = np.inf
             matchingCost[1:, 0, :, :] = np.inf
             for r in range(2, R, 2):
@@ -896,14 +907,15 @@ def lowMemoryConstraint(kind='default'):
             return matchingCost
 
         def asyncBackTrack(**kwargs):
-            refDatas = kwargs['refDatas']
-            inpDatas = kwargs['inpDatas']
-            matchingCost = kwargs['matchingCost']
+            refDatas = kwargs.get('refDatas')
+            inpDatas = kwargs.get('inpDatas')
+            matchingCost = kwargs.pop('matchingCost')
 
-            #inputFinFrameBackTracked, epsilonFinFrameBackTracked = kwargs['argsFinFrameBackTracked']
-            inputFinFrameBackTracked, epsilon_p1_FinFrameBackTracked, epsilon_p2_FinFrameBackTracked = \
-                np.unravel_index(np.nanargmin(matchingCost[matchingCost.shape[0] - 1]),
-                                              matchingCost[matchingCost.shape[0] - 1].shape)
+            #inputFinFrameBackTracked, epsilon_p1_FinFrameBackTracked, epsilon_p2_FinFrameBackTracked = \
+            #    np.unravel_index(np.nanargmin(matchingCost[matchingCost.shape[0] - 1]),
+            #                                  matchingCost[matchingCost.shape[0] - 1].shape)
+            inputFinFrameBackTracked = kwargs.get('inputFinFrameBackTracked', np.nanargmin(matchingCost[matchingCost.shape[0] - 1, :, 2*limits, 2*limits]))
+            epsilon_p1_FinFrameBackTracked, epsilon_p2_FinFrameBackTracked = 2*limits, 2*limits
 
             correspondentPointsBase, correspondentPointsPeripheral1, correspondentPointsPeripheral2 = [], [], []
             r, i, epsilon_p1, epsilon_p2 = matchingCost.shape[0] - 1, inputFinFrameBackTracked, \
@@ -932,7 +944,7 @@ def lowMemoryConstraint(kind='default'):
             forNewEpsilon = [[0, 0, 0, 0],
                              [-1, -1, -1, 0],
                              [-2, -2, -1, 0],
-                             [-2, -2, -1, 0],
+                             [-3, -2, -1, 0],
                              [-3, -2, -1, 0],
                              [-3, -2, -1, 0],
                              [-3, -2, -1, 0],
@@ -995,5 +1007,6 @@ def lowMemoryConstraint(kind='default'):
             return correspondentPointsBase, correspondentPointsPeripheral1, correspondentPointsPeripheral2
 
         return {'matchingCost': asyncCalc, 'backTrack': asyncBackTrack}
+
     else:
         raise NameError('{0} is invalid constraint name'.format(kind))

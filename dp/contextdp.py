@@ -87,7 +87,7 @@ class SyncContextDP(DP):
             self.correspondents[joint] = correspondentPoints
             self.totalCosts[joint] = np.nanmin(matchingCost[self.reference.frame_max - 1]) / self.reference.frame_max
 
-    def resultVisualization(self, kind='visualization', fps=240, maximumGapTime=0.1, resultDir=""):
+    def resultVisualization(self, kind='visualization', fps=240, maximumGapTime=0.1, resultDir="", **kwargs):
         if 'visualization' not in kind:
             raise NameError('{0} is invalid kind name'.format(kind))
         # calc sync dp for each context
@@ -144,67 +144,79 @@ class AsyncContextDP(DP):
             # call method in super of super class which is DPBase
             correspondentPointses, matchingCosts[contextKey] =\
                 super(DP, self).lowMemoryCalc(refDatas, inpDatas, myMatchingCostFunc=lowMemoryConstraint(kinds[index]), name=contextKey)
-            for correspondentPoint, joint in zip(correspondentPointses, self.contexts[index]):
-                self.correspondents[joint] = np.array(correspondentPoint)
+            for correspondentPoints, joint in zip(correspondentPointses, self.contexts[index]):
+                self.correspondents[joint] = np.array(correspondentPoints)
 
         if returnMatchingCosts:
             return matchingCosts
-    """
-    def syncCorrespondInitial(self, myMatchingCostFunc=None):
-        myLocalCosts = {}
+
+    def asyncCorrespondInitial(self, kinds):
         for index, context in enumerate(self.contexts):
-            localCost = np.zeros((self.reference.frame_max, self.input.frame_max))
-            for joint in context:
-                localCost += cdist(self.reference.joints[joint][::-1, :],
-                                   self.input.joints[joint][::-1, :], 'euclidean')
-            localCost /= len(context)
-
-            contextKey = ''
             for joint in self.contexts[index]:
-                contextKey += joint
-                contextKey += '-'
-            contextKey = contextKey[:-1]
-            myLocalCosts[contextKey] = localCost
-        matchingCosts = self.asynchronous(myMatchingCostFunc=myMatchingCostFunc, myLocalCosts=myLocalCosts,
-                                  returnMatchingCosts=True)
-        self._searchInitialFrame(matchingCosts, myMatchingCostFunc, myLocalCosts)
+                self.reference.joints[joint] = self.reference.joints[joint][::-1, :]
+                self.input.joints[joint] = self.input.joints[joint][::-1, :]
 
-    def _searchInitialFrame(self, matchingCosts, myMatchingCostFunc, myLocalCosts):
+        matchingCosts = self.asynchronous(kinds, returnMatchingCosts=True)
+        self._searchInitialFrame(matchingCosts, kinds)
+
+        # revert order
+        for index, context in enumerate(self.contexts):
+            for joint in self.contexts[index]:
+                self.reference.joints[joint] = self.reference.joints[joint][::-1, :]
+                self.input.joints[joint] = self.input.joints[joint][::-1, :]
+
+    def _searchInitialFrame(self, matchingCosts, kinds):
 
         if self.verbose:
             print("calculating matching costs...")
 
         totalMatchingCosts = []
 
+        limits = 2
         for inputTime in range(self.input.frame_max):
-            totalMatchingCosts.append(np.nansum(
-                [matchingCost[self.reference.frame_max - 1, inputTime] for matchingCost in matchingCosts.values()]))
+            tmp = 0
+            for contextKey, matchingCost in matchingCosts.items():
+                contextNum = len(contextKey.split('-'))
+                if contextNum == 2:
+                    tmp += matchingCost[self.reference.frame_max - 1, inputTime, 2*limits] / contextNum
+                elif contextNum == 3:
+                    tmp += matchingCost[self.reference.frame_max - 1, inputTime, 2*limits, 2*limits] / contextNum
+            totalMatchingCosts.append(tmp)
         initialFrameReversed = np.argmin(totalMatchingCosts)
 
         if self.verbose:
             print("\ninitial frame is {0}\nback tracking now...".format(
                 self.input.frame_max - initialFrameReversed - 1))
 
-        backTrackFunc = myMatchingCostFunc['backTrack']
-        for joint in matchingCosts.keys():
-            correspondentPoints = np.array(
-                backTrackFunc(matchingCost=matchingCosts[joint], inputFinFrameBackTracked=initialFrameReversed,
-                              localCost=myLocalCosts[joint]))
-            # correspondentPoints[reference, input]
-            # reverse ref
-            correspondentPoints[:, 0] = self.reference.frame_max - 1 - correspondentPoints[::-1, 0]
-            # reverse inp
-            correspondentPoints[:, 1] = self.input.frame_max - 1 - correspondentPoints[::-1, 1]
+        for contextKey, kind in zip(matchingCosts.keys(), kinds):
+            backTrackFunc = lowMemoryConstraint(kind)['backTrack']
+            correspondentPointses = np.array(
+                backTrackFunc(matchingCost=matchingCosts[contextKey], inputFinFrameBackTracked=initialFrameReversed))
 
-            matchingCost = matchingCosts[joint][::-1, ::-1]
+            for correspondentPoints, joint in zip(correspondentPointses, contextKey.split('-')):
+                correspondentPoints = np.array(correspondentPoints)
+                # correspondentPoints[reference, input]
+                # reverse ref
+                correspondentPoints[:, 0] = self.reference.frame_max - 1 - correspondentPoints[::-1, 0]
+                # reverse inp
+                correspondentPoints[:, 1] = self.input.frame_max - 1 - correspondentPoints[::-1, 1]
 
-            self.correspondents[joint] = correspondentPoints
-            self.totalCosts[joint] = np.nanmin(matchingCost[self.reference.frame_max - 1]) / self.reference.frame_max
-    """
-    def resultVisualization(self, kind='visualization', fps=240, maximumGapTime=0.1, resultDir=""):
-        # calc sync dp for each context
-        myMatchingCostFunc = constraint(kind)
-        self.syncCorrespondInitial(myMatchingCostFunc=myMatchingCostFunc)
+                self.correspondents[joint] = np.array(correspondentPoints)
+
+                matchingCost = matchingCosts[contextKey][::-1, ::-1]
+                self.totalCosts[joint] = np.nanmin(
+                    matchingCost[self.reference.frame_max - 1]) / self.reference.frame_max
+
+
+    def resultVisualization(self, kind='visualization2', fps=240, maximumGapTime=0.1, resultDir="", **kwargs):
+        try:
+            kinds = kwargs.pop('kinds')
+            for kind_ in kinds:
+                if 'visualization2' not in kind_:
+                    raise ValueError('all kinds must be included \'visualization2\' but got {0}'.format(kind_))
+            self.asyncCorrespondInitial(kinds)
+        except KeyError:
+            raise NameError('kinds must be set as argument')
 
         # revert context into each joint
         newcorrespondents = {}

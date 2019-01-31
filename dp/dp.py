@@ -233,7 +233,7 @@ class DP(DPBase):
 
         return x, y
 
-    def resultVisualization(self, kind='visualization', fps=240, maximumGapTime=0.1, resultDir=""):
+    def resultVisualization(self, kind='visualization', fps=240, maximumGapTime=0.1, resultDir="", **kwargs):
         if 'visualization' not in kind:
             raise NameError('{0} is invalid kind name'.format(kind))
         myMatchingCostFunc = constraint(kind=kind)
@@ -262,6 +262,9 @@ class DP(DPBase):
 
             init = inp[0]
             fin = inp[-1]
+
+            if fin - init + 1 != len(ref):
+                raise ValueError("Calculation error: input has insufficience or duplicate number")
 
             slopes = np.gradient(ref)
             v = np.ones(runningAveRange) / float(runningAveRange)
