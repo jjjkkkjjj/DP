@@ -59,9 +59,19 @@ class LeftDockWidget(QWidget):
         self.labelRealRefPath.setText("No selected")
         vboxConfig.addWidget(self.labelRealRefPath)
 
+        hboxRefButton = QHBoxLayout()
         self.buttonOpenRefPath = QPushButton("Open")
         self.buttonOpenRefPath.clicked.connect(lambda: self.openClicked(True))
-        vboxConfig.addWidget(self.buttonOpenRefPath)
+        hboxRefButton.addWidget(self.buttonOpenRefPath)
+
+        self.buttonViewRefPath = QPushButton("View")
+        self.buttonViewRefPath.clicked.connect(lambda: self.viewClicked(True))
+        self.buttonViewRefPath.setEnabled(False)
+        hboxRefButton.addWidget(self.buttonViewRefPath)
+        vboxConfig.addLayout(hboxRefButton)
+
+        self.labelRefRange = QLabel()
+        vboxConfig.addWidget(self.labelRefRange)
 
         self.labelInputPatternPath = QLabel()
         self.labelInputPatternPath.setText("Input Pattern Path")
@@ -71,9 +81,19 @@ class LeftDockWidget(QWidget):
         self.labelRealInpPath.setText("No selected")
         vboxConfig.addWidget(self.labelRealInpPath)
 
+        hboxInpButton = QHBoxLayout()
         self.buttonOpenInpPath = QPushButton("Open")
         self.buttonOpenInpPath.clicked.connect(lambda: self.openClicked(False))
-        vboxConfig.addWidget(self.buttonOpenInpPath)
+        hboxInpButton.addWidget(self.buttonOpenInpPath)
+
+        self.buttonViewInpPath = QPushButton("View")
+        self.buttonViewInpPath.clicked.connect(lambda: self.viewClicked(False))
+        self.buttonViewInpPath.setEnabled(False)
+        hboxInpButton.addWidget(self.buttonViewInpPath)
+        vboxConfig.addLayout(hboxInpButton)
+
+        self.labelInpRange = QLabel()
+        vboxConfig.addWidget(self.labelInpRange)
 
         self.buttonDone = QPushButton("Done!")
         self.buttonDone.clicked.connect(self.doneClicked)
@@ -154,7 +174,7 @@ class LeftDockWidget(QWidget):
             if self.parent.caches['prevDirVolleyball'] is not None:
                 basedir = self.parent.caches['prevDirVolleyball']
         elif self.comboBoxSkeltonType.currentText() == 'Baseball':
-            filters = "CSV files(*.csv)"
+            filters = "CSV files(*.csv);;TRC files(*.trc)"
             if self.parent.caches['prevDirBaseball'] is not None:
                 basedir = self.parent.caches['prevDirBaseball']
         else:
@@ -162,55 +182,54 @@ class LeftDockWidget(QWidget):
 
         if ref:
             refPath, __ = QFileDialog.getOpenFileName(self, 'load file', basedir, filters)
-            if refPath != "":
+            if refPath != "" and self._checkData(True, refPath):
                 self.refPath = refPath
                 self.labelRealRefPath.setText(os.path.basename(self.refPath))
                 exec('self.parent.caches[\'prevDir{0}\'] = os.path.dirname(self.refPath)'.format(
                     self.comboBoxSkeltonType.currentText()))
+                self.buttonViewRefPath.setEnabled(True)
             else:
                 self.refPath = None
                 self.labelRealRefPath.setText("No selected")
-
+                self.buttonViewRefPath.setEnabled(False)
 
         else:
             inpPath, __ = QFileDialog.getOpenFileName(self, 'load file', basedir, filters)
-            if inpPath != "":
+            if inpPath != "" and self._checkData(False, inpPath):
                 self.inpPath = inpPath
                 self.labelRealInpPath.setText(os.path.basename(self.inpPath))
                 exec('self.parent.caches[\'prevDir{0}\'] = os.path.dirname(self.inpPath)'.format(
                     self.comboBoxSkeltonType.currentText()))
+                self.buttonViewInpPath.setEnabled(True)
             else:
                 self.inpPath = None
                 self.labelRealInpPath.setText("No selected")
+                self.buttonViewInpPath.setEnabled(False)
 
         if self.refPath is not None and self.inpPath is not None:
             self.buttonDone.setEnabled(True)
         else:
             self.buttonDone.setEnabled(False)
 
-    def doneClicked(self):
-        if self.comboBoxSkeltonType.currentText() == 'Baseball':
-            refData = self.dpModule['csvReader'](os.path.basename(self.refPath), os.path.dirname(self.refPath))
-            if refData is None:
-                QMessageBox.critical(self, "Caution", "{0} cannot be loaded".format(self.refPath))
-                return
-            inpData = self.dpModule['csvReader'](os.path.basename(self.inpPath), os.path.dirname(self.inpPath))
-            if inpData is None:
-                QMessageBox.critical(self, "Caution", "{0} cannot be loaded".format(self.inpPath))
-                return
+    def viewClicked(self, ref):
+        if ref:
+            qlabel = self.labelRefRange
+            data = self.dpModule['csvReader'](os.path.basename(self.refPath), os.path.dirname(self.refPath))
         else:
-            refData = self.dpModule['Data']()
-            try:
-                refData.set_from_trc(self.refPath)
-            except:
-                QMessageBox.critical(self, "Caution", "{0} cannot be loaded".format(self.refPath))
-                return
-            inpData = self.dpModule['Data']()
-            try:
-                inpData.set_from_trc(self.inpPath)
-            except:
-                QMessageBox.critical(self, "Caution", "{0} cannot be loaded".format(self.inpPath))
-                return
+            qlabel = self.labelInpRange
+            data = self.dpModule['csvReader'](os.path.basename(self.inpPath), os.path.dirname(self.inpPath))
+        self.parent.showNormalViewer(qlabel, data)
+
+
+    def doneClicked(self):
+        refData = self.dpModule['csvReader'](os.path.basename(self.refPath), os.path.dirname(self.refPath))
+        inpData = self.dpModule['csvReader'](os.path.basename(self.inpPath), os.path.dirname(self.inpPath))
+
+        # cut
+        ini, fin = str(self.labelRefRange.text()).split('~')
+        refData.cutFrame(ini=int(ini), fin=int(fin), save=True, update=False)
+        ini, fin = str(self.labelInpRange.text()).split('~')
+        inpData.cutFrame(ini=int(ini), fin=int(fin), save=True, update=False)
 
         self.parent.reset()
 
@@ -313,3 +332,40 @@ class LeftDockWidget(QWidget):
             self.parent.draw()
         else:
             self.pause()
+
+    def _checkData(self, ref, path):
+        if self.comboBoxSkeltonType.currentText() == 'Baseball' and os.path.basename(path)[-4:] in ['.csv', '.CSV']:
+            if ref:
+                refData = self.dpModule['csvReader'](os.path.basename(path), os.path.dirname(path))
+                if refData is None:
+                    QMessageBox.critical(self, "Caution", "{0} cannot be loaded".format(path))
+                    self.labelRefRange.setText('')
+                    return False
+                self.labelRefRange.setText('0~{0}'.format(refData.frame_max - 1))
+            else:
+                inpData = self.dpModule['csvReader'](os.path.basename(path), os.path.dirname(path))
+                if inpData is None:
+                    QMessageBox.critical(self, "Caution", "{0} cannot be loaded".format(path))
+                    self.labelInpRange.setText('')
+                    return False
+                self.labelInpRange.setText('0~{0}'.format(inpData.frame_max - 1))
+        else:
+            if ref:
+                refData = self.dpModule['Data']()
+                try:
+                    refData.set_from_trc(path)
+                except:
+                    QMessageBox.critical(self, "Caution", "{0} cannot be loaded".format(path))
+                    self.labelRefRange.setText('')
+                    return False
+                self.labelRefRange.setText('0~{0}'.format(refData.frame_max - 1))
+            else:
+                inpData = self.dpModule['Data']()
+                try:
+                    inpData.set_from_trc(path)
+                except:
+                    QMessageBox.critical(self, "Caution", "{0} cannot be loaded".format(path))
+                    self.labelInpRange.setText('')
+                    return False
+                self.labelInpRange.setText('0~{0}'.format(inpData.frame_max - 1))
+        return True

@@ -47,7 +47,7 @@ class DPgui(QMainWindow):
 
         # for leftdock
         self.dpModule = {'contexts': contexts, 'csvReader': csvReader, 'Data': Data, 'constraint': constraint,
-                         'DP': DP, 'SyncContextDP': SyncContextDP, 'AsyncContextDP': AsyncContextDP}
+                         'DP': DP, 'SyncContextDP': SyncContextDP, 'AsyncContextDP': AsyncContextDP, 'NormalViewer': NormalViewer}
 
         if not os.path.exists('./.config'):
             os.mkdir('.config')
@@ -304,6 +304,13 @@ class DPgui(QMainWindow):
         self.leftdock.setWidget(self.leftdockwidget)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.leftdock)
 
+    def showNormalViewer(self, qlabel, data):
+        data_ = np.array(list(data.joints.values()))  # [joint index][time][dim]
+        normalViewer = NormalViewer(x=data_[:, :, 0].T, y=data_[:, :, 1].T, z=data_[:, :, 2].T, qlabel=qlabel,
+                   joints=data.joints, lines=data.lines, fps=int(self.leftdockwidget.lineeditFps.text()), colors=None, parent=self)
+        normalViewer.setWindowModality(Qt.ApplicationModal)
+        normalViewer.show()
+
     # draw
     def draw(self):
         if self.done:
@@ -494,3 +501,41 @@ class DPgui(QMainWindow):
 
         # config
         self.writeConfig()
+
+from .view import gui3d
+class NormalViewer(gui3d):
+    def __init__(self, x, y, z, joints, qlabel, fps=240, lines=None, colors=None, parent=None):
+        super().__init__(x, y, z, joints, fps=fps, lines=lines, colors=colors, parent=parent)
+
+        self.qlabel = qlabel
+
+        self.setShortCut()
+
+    def setShortCut(self):
+        # quit
+        quit_action = QAction("Close the application", self)
+        quit_action.setShortcut("Ctrl+Q")
+        quit_action.triggered.connect(self.close)
+        self.filemenu.addAction(quit_action)
+
+        # edit
+        self.edit_menu = self.menuBar().addMenu("&Edit")
+
+        nextframe_action = QAction("Init Frame", self)
+        nextframe_action.setShortcut("Ctrl+I")
+        nextframe_action.triggered.connect(self.setInitFrame)
+        self.edit_menu.addAction(nextframe_action)
+
+        nextframe_action = QAction("Fin Frame", self)
+        nextframe_action.setShortcut("Ctrl+F")
+        nextframe_action.triggered.connect(self.setFinFrame)
+        self.edit_menu.addAction(nextframe_action)
+
+    # menu event
+    def setInitFrame(self):
+        ini, fin = str(self.qlabel.text()).split('~')
+        self.qlabel.setText('{0}~{1}'.format(self.frame, fin))
+
+    def setFinFrame(self):
+        ini, fin = str(self.qlabel.text()).split('~')
+        self.qlabel.setText('{0}~{1}'.format(ini, self.frame))

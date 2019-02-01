@@ -93,6 +93,31 @@ class Data:
     def check(self):
         pass
 
+    def cutFrame(self, ini, fin, save=True, update=False):
+        if self.joints is None:
+            raise NotImplementedError('no data')
+
+        if ini < 0:
+            ini = 0
+        if fin > self.frame_max:
+            fin = self.frame_max
+
+        newjoints = {}
+        for joint, data in self.joints.items():
+            # data[time, dim]
+            newjoints[joint] = data[ini:fin]
+        self.frame_max = fin - ini
+        self.joints = newjoints
+        return
+        if save:
+            filename, extension = os.path.splitext(self.name)
+            if update:
+                path = os.path.join(self.dir, filename, '.trc')
+            else:
+                path = os.path.join(self.dir, filename, '{0}-{1}.trc'.format(ini, fin))
+            self.makeTrc(path)
+
+
     def __interpolate(self, data, index):
         if self.interpolate == 'linear':
             x, y, z = data[:, 3 * index + 2], data[:, 3 * index + 3], data[:, 3 * index + 4]
@@ -231,3 +256,28 @@ class Data:
         data = np.array(list(self.joints.values()))  # [joint index][time][dim]
         vis.show3d(x=data[:, :, 0].T, y=data[:, :, 1].T, z=data[:, :, 2].T,
                    jointNames=self.joints, saveonly=saveonly, savepath=path, lines=self.lines, fps=fps, colors=colors)
+
+    def makeTrc(self, path):
+        pass
+        with open(path, 'w') as f:
+            f.write('PathFileType\t4\t(X/Y/Z)\t{0}\t\n'.format(path))
+            f.write(
+                'DataRate\tCameraRate\tNumFrames\tNumMarkers\tUnits\tOrigDataRate\tOrigDataStartFrame\tOrigNumFrames\t\n')
+            f.write('{0}\t{0}\t{1}\t{2}\t{3}\t{0}\t1\t{1}\t\n'.format(fps, frameNum, markerNum, unit))
+
+            line1 = "Frame#\tTime\t"
+            line2 = "\t\t"
+            for index, point in enumerate(joints):
+                line1 += "{0}\t\t\t".format(point)
+                line2 += "X{0}\tY{0}\tZ{0}\t".format(index + 1)
+            line1 += "\t\n"
+            line2 += "\t\n"
+
+            f.write(line1)
+            f.write(line2)
+            f.write("\t\n")
+
+        with open(path, 'a') as f:
+            Data = np.hstack([np.arange(1, frameNum + 1).reshape(frameNum, 1), times, data])
+            np.savetxt(f, Data, delimiter='\t')
+
