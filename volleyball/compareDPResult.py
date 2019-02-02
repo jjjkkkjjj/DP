@@ -6,6 +6,18 @@ from dp.utils import referenceReader
 import os
 import sys
 
+nameExchanger = {'head': 'HD', 'R_ear': 'RE', 'L_ear': 'LE',
+                     'R_hand': 'RH', 'R_in_wrist': 'RIW', 'R_out_wrist': 'ROW',
+                     'L_hand': 'LH', 'L_in_wrist': 'LIW', 'L_out_wrist': 'LOW',
+                     'R_out_elbow': 'ROE', 'R_in_elbow': 'RIE', 'R_backshoulder': 'RBS',
+                     'L_out_elbow': 'LOE', 'L_in_elbow': 'LIE', 'L_backshoulder': 'LBS',
+                     'sternum': 'STN', 'R_frontshoulder': 'RFS', 'L_frontshoulder': 'LFS',
+                     'R_rib': 'RRIB', 'R_ASIS': 'RASIS',
+                     'L_rib': 'LRIB', 'L_ASIS': 'LASIS',
+                     'R_PSIS': 'RPSIS', 'L_PSIS': 'LPSIS',
+                     'C7': 'C7', 'D_UA?': 'D_UA'}
+
+
 def implementDP(name, serve, successNum, failureNum):
     Dir = "./trc/" + name
 
@@ -21,10 +33,15 @@ def implementDP(name, serve, successNum, failureNum):
     filename = '{0}{1:02d}.trc'.format(name, successNum)
     refData = Data()
     refData.set_from_trc(os.path.join('./trc', name, filename), lines='volleyball')
+    for joint in list(refData.joints.keys()):
+        refData.joints[nameExchanger[joint]] = refData.joints.pop(joint)
 
     filename = '{0}{1:02d}.trc'.format(name, failureNum)
     inpData = Data()
     inpData.set_from_trc(os.path.join('./trc', name, filename), lines='volleyball')
+    for joint in list(inpData.joints.keys()):
+        inpData.joints[nameExchanger[joint]] = inpData.joints.pop(joint)
+
 
     contexts = [['head', 'R_ear', 'L_ear'],
                 ['R_hand', 'R_in_wrist', 'R_out_wrist'],
@@ -35,6 +52,11 @@ def implementDP(name, serve, successNum, failureNum):
                 ['R_rib', 'R_ASIS'],
                 ['L_rib', 'L_ASIS'],
                 ['R_PSIS', 'L_PSIS']]
+
+    # name change
+    for i, context in enumerate(list(contexts)):
+        for j, joint in enumerate(list(context)):
+            contexts[i][j] = nameExchanger[joint]
 
     kinds = ['async3-visualization2',
             'async3-visualization2',
@@ -82,18 +104,18 @@ def implementDP(name, serve, successNum, failureNum):
         if not os.path.exists(resultDir):
             os.mkdir(resultDir)
 
-        view = Visualization()
-        view.show(x=xi, y=yi, xtime=refData.frame_max, ytime=inpData.frame_max,
+        viewi = Visualization()
+        viewi.show(x=xi, y=yi, xtime=refData.frame_max, ytime=inpData.frame_max,
               title=title, legend=True, correspondLine=False,
               savepath=os.path.join(resultDir, "independent.png"))
 
-        view = Visualization()
-        view.show(x=xs, y=ys, xtime=refData.frame_max, ytime=inpData.frame_max,
+        views = Visualization()
+        views.show(x=xs, y=ys, xtime=refData.frame_max, ytime=inpData.frame_max,
                   title=title, legend=True, correspondLine=False,
                   savepath=os.path.join(resultDir, "sync.png"))
 
-        view = Visualization()
-        view.show(x=xa, y=ya, xtime=refData.frame_max, ytime=inpData.frame_max,
+        viewa = Visualization()
+        viewa.show(x=xa, y=ya, xtime=refData.frame_max, ytime=inpData.frame_max,
                   title=title, legend=True, correspondLine=False,
                   savepath=os.path.join(resultDir, "async.png"))
         """
