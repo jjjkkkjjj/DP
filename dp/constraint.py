@@ -835,7 +835,7 @@ def lowMemoryConstraint(kind='default'):
             for epsilon in range(-2*limits, 0):
                 refP1_inpP1_cdist.append(cdist(refDataPeripheral1, inpDataPeripheral1[:epsilon], 'euclidean'))
                 refP2_inpP2_cdist.append(cdist(refDataPeripheral2, inpDataPeripheral2[:epsilon], 'euclidean'))
-            refP1_inpP1_cdist.append(cdist(refDataPeripheral1, inpDataPeripheral2, 'euclidean'))
+            refP1_inpP1_cdist.append(cdist(refDataPeripheral1, inpDataPeripheral1, 'euclidean'))
             refP2_inpP2_cdist.append(cdist(refDataPeripheral2, inpDataPeripheral2, 'euclidean'))
             for epsilon in range(1, 2*limits + 1):
                 refP1_inpP1_cdist.append(cdist(refDataPeripheral1, inpDataPeripheral1[epsilon:], 'euclidean'))
