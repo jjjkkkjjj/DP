@@ -21,8 +21,8 @@ def constraint(kind='default'):
             return matchingCost
 
         def asynmBackTrack(**kwargs):
-            matchingCost = kwargs['matchingCost']
-            inputFinFrameBackTracked = kwargs['inputFinFrameBackTracked']
+            matchingCost = kwargs.pop('matchingCost')
+            inputFinFrameBackTracked = kwargs.get('inputFinFrameBackTracked', np.nanargmin(matchingCost[matchingCost.shape[0] - 1]))
             # back track
             correspondentPoints = []
             r, i = matchingCost.shape[0] - 1, inputFinFrameBackTracked
@@ -76,9 +76,10 @@ def constraint(kind='default'):
             return matchingCost
         if kind == 'sync':
             def syncBackTrack(**kwargs):
-                localCost = kwargs['localCost']
-                matchingCost = kwargs['matchingCost']
-                inputFinFrameBackTracked = kwargs['inputFinFrameBackTracked']
+                localCost = kwargs.pop('localCost')
+                matchingCost = kwargs.pop('matchingCost')
+                inputFinFrameBackTracked = kwargs.get('inputFinFrameBackTracked',
+                                                      np.nanargmin(matchingCost[matchingCost.shape[0] - 1]))
 
                 correspondentPoints = []
                 r, i = matchingCost.shape[0] - 1, inputFinFrameBackTracked
@@ -287,9 +288,10 @@ def constraint(kind='default'):
 
         if kind == 'refskip':
             def syncBackTrack(**kwargs):
-                localCost = kwargs['localCost']
-                matchingCost = kwargs['matchingCost']
-                inputFinFrameBackTracked = kwargs['inputFinFrameBackTracked']
+                localCost = kwargs.get('localCost')
+                matchingCost = kwargs.pop('matchingCost')
+                inputFinFrameBackTracked = kwargs.get('inputFinFrameBackTracked',
+                                                      np.nanargmin(matchingCost[matchingCost.shape[0] - 1]))
 
                 correspondentPoints = []
                 r, i = matchingCost.shape[0] - 1, inputFinFrameBackTracked
@@ -310,16 +312,18 @@ def constraint(kind='default'):
 
         else:
             def syncBackTrack(**kwargs):
-                localCost = kwargs['localCost']
-                matchingCost = kwargs['matchingCost']
-                inputFinFrameBackTracked = kwargs['inputFinFrameBackTracked']
+                localCost = kwargs.get('localCost')
+                matchingCost = kwargs.pop('matchingCost')
+                inputFinFrameBackTracked = kwargs.get('inputFinFrameBackTracked', np.nanargmin(matchingCost[matchingCost.shape[0] - 1]))
 
                 correspondentPoints = []
                 r, i = matchingCost.shape[0] - 1, inputFinFrameBackTracked
-                correspondentPoints.append([r, i])
+
                 if matchingCost.shape[0] % 2 == 0:
                     r = r - 1
                     correspondentPoints.insert(0, [r - 1, i])
+                else:
+                    correspondentPoints.append([r, i])
 
                 while r > 0:
                     tmp = matchingCost[r - 2, max(0, i - 4):i - 1]  # i-4~i-1
@@ -741,13 +745,14 @@ def lowMemoryConstraint(kind='default'):
 
             correspondentPointsBase, correspondentPointsPeripheral = [], []
             r, i, epsilon = matchingCost.shape[0] - 1, inputFinFrameBackTracked, epsilonFinFrameBackTracked - 2*limits
-            correspondentPointsBase.append([r, i])
-            correspondentPointsPeripheral.append([r, i + epsilon])
 
             if matchingCost.shape[0] % 2 == 0:
                 r = r - 1
                 correspondentPointsBase.insert(0, [r - 1, i])
                 correspondentPointsPeripheral.insert(0, [r - 1, i + epsilon])
+            else:
+                correspondentPointsBase.append([r, i])
+                correspondentPointsPeripheral.append([r, i + epsilon])
 
             """
             epsilon\i| i-1    i-2   i-3   i-4(tmp=0,1,2)
@@ -902,6 +907,9 @@ def lowMemoryConstraint(kind='default'):
                                                              i_3.reshape((i_3.shape[0], i_3.shape[1] * i_3.shape[2])),
                                                              i_4.reshape((i_4.shape[0], i_4.shape[1] * i_4.shape[2]))], axis=1), axis=1)
 
+            if R % 2 == 0:
+                matchingCost[R - 1, :, :, :] = matchingCost[R - 2, :, :, :]
+
             if np.sum(np.isinf(matchingCost[R - 1, :, :, :])) == matchingCost.shape[1] * matchingCost.shape[2] * matchingCost.shape[3]: # all matching cost are infinity
                 raise OverflowError('all matching cost are infinity')
             return matchingCost
@@ -921,15 +929,15 @@ def lowMemoryConstraint(kind='default'):
             r, i, epsilon_p1, epsilon_p2 = matchingCost.shape[0] - 1, inputFinFrameBackTracked, \
                                             epsilon_p1_FinFrameBackTracked - 2*limits, epsilon_p2_FinFrameBackTracked - 2*limits
 
-            correspondentPointsBase.append([r, i])
-            correspondentPointsPeripheral1.append([r, i + epsilon_p1])
-            correspondentPointsPeripheral2.append([r, i + epsilon_p2])
-
             if matchingCost.shape[0] % 2 == 0:
                 r = r - 1
                 correspondentPointsBase.insert(0, [r - 1, i])
                 correspondentPointsPeripheral1.insert(0, [r - 1, i + epsilon_p1])
                 correspondentPointsPeripheral2.insert(0, [r - 1, i + epsilon_p2])
+            else:
+                correspondentPointsBase.append([r, i])
+                correspondentPointsPeripheral1.append([r, i + epsilon_p1])
+                correspondentPointsPeripheral2.append([r, i + epsilon_p2])
 
             """
             epsilon\i| i-1    i-2   i-3   i-4(tmp=0,1,2)
