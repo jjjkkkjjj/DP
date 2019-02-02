@@ -47,7 +47,7 @@ class DPgui(QMainWindow):
 
         # for leftdock
         self.dpModule = {'contexts': contexts, 'csvReader': csvReader, 'Data': Data, 'constraint': constraint,
-                         'DP': DP, 'SyncContextDP': SyncContextDP, 'AsyncContextDP': AsyncContextDP, 'NormalViewer': NormalViewer}
+                         'DP': DP, 'SyncContextDP': SyncContextDP, 'ASyncContextDP': AsyncContextDP, 'NormalViewer': NormalViewer}
 
         if not os.path.exists('./.config'):
             os.mkdir('.config')

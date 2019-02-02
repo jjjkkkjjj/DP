@@ -9,7 +9,6 @@ class LeftDockWidget(QWidget):
         QWidget.__init__(self, parent)
         self.parent = parent
 
-        self.calcType = 'Independent'
         self.dpModule = dpModule
         self.contextsSet = {'type': 'Default', 'contexts': self.dpModule['contexts']('Baseball')}
         self.refPath = None
@@ -222,9 +221,16 @@ class LeftDockWidget(QWidget):
 
 
     def doneClicked(self):
-        refData = self.dpModule['csvReader'](os.path.basename(self.refPath), os.path.dirname(self.refPath))
-        inpData = self.dpModule['csvReader'](os.path.basename(self.inpPath), os.path.dirname(self.inpPath))
-
+        if self.comboBoxSkeltonType.currentText() == 'Baseball' and os.path.basename(self.refPath)[-4:] in ['.csv', '.CSV']:
+            refData = self.dpModule['csvReader'](os.path.basename(self.refPath), os.path.dirname(self.refPath))
+        else:
+            refData = self.dpModule['Data']()
+            refData.set_from_trc(self.refPath)
+        if self.comboBoxSkeltonType.currentText() == 'Baseball' and os.path.basename(self.inpPath)[-4:] in ['.csv', '.CSV']:
+            inpData = self.dpModule['csvReader'](os.path.basename(self.inpPath), os.path.dirname(self.inpPath))
+        else:
+            inpData = self.dpModule['Data']()
+            inpData.set_from_trc(self.inpPath)
         # cut
         ini, fin = str(self.labelRefRange.text()).split('~')
         refData.cutFrame(ini=int(ini), fin=int(fin), save=True, update=False)
@@ -240,21 +246,22 @@ class LeftDockWidget(QWidget):
             fps = int(self.lineeditFps.text())
             maximumGapTime = float(self.lineEditMaxGapTime.text())
             implementKwargs = {'fps': fps, 'maximumGapTime': maximumGapTime}
-            if self.calcType == 'Independent':
+            calcType = str(self.comboBoxCalculationType.currentText())
+            if calcType == 'Independent':
                 DP_ = self.dpModule['DP'](**kwargs)
-            elif self.calcType == 'Synchronous Contexts':
+            elif calcType == 'Synchronous Contexts':
                 DP_ = self.dpModule['SyncContextDP'](self.contextsSet['contexts'], **kwargs)
                 implementKwargs['kind'] = 'visualization2'
-            elif self.calcType == 'Asynchronous Contexts':
+            elif calcType == 'Asynchronous Contexts':
                 DP_ = self.dpModule['ASyncContextDP'](self.contextsSet['contexts'], **kwargs)
                 # add kinds
                 kinds = []
-                for context in self.contextsSet:
+                for context in self.contextsSet['contexts']:
                     kinds.append('async{0}-visualization2'.format(len(context)))
                 implementKwargs['kinds'] = kinds
 
             else:
-                raise NameError("{0} is invalid calculation type".format(self.calcType))
+                raise NameError("{0} is invalid calculation type".format(calcType))
 
             loadingDialog = LoadingDialog(DP=DP_, implementKwargs=implementKwargs, parent=self)
             loadingDialog.setWindowModality(Qt.ApplicationModal)

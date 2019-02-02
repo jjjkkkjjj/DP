@@ -72,20 +72,20 @@ class SyncContextDP(DP):
                 self.input.frame_max - initialFrameReversed - 1))
 
         backTrackFunc = myMatchingCostFunc['backTrack']
-        for joint in matchingCosts.keys():
+        for contextKey in matchingCosts.keys():
             correspondentPoints = np.array(
-                backTrackFunc(matchingCost=matchingCosts[joint], inputFinFrameBackTracked=initialFrameReversed,
-                        localCost=myLocalCosts[joint]))
+                backTrackFunc(matchingCost=matchingCosts[contextKey], inputFinFrameBackTracked=initialFrameReversed,
+                        localCost=myLocalCosts[contextKey]))
             # correspondentPoints[reference, input]
             # reverse ref
             correspondentPoints[:, 0] = self.reference.frame_max - 1 - correspondentPoints[::-1, 0]
             # reverse inp
             correspondentPoints[:, 1] = self.input.frame_max - 1 - correspondentPoints[::-1, 1]
 
-            matchingCost = matchingCosts[joint][::-1, ::-1]
+            matchingCost = matchingCosts[contextKey][::-1, ::-1]
 
-            self.correspondents[joint] = correspondentPoints
-            self.totalCosts[joint] = np.nanmin(matchingCost[self.reference.frame_max - 1]) / self.reference.frame_max
+            self.correspondents[contextKey] = correspondentPoints
+            self.totalCosts[contextKey] = np.nanmin(matchingCost[self.reference.frame_max - 1]) / self.reference.frame_max
 
     def resultVisualization(self, kind='visualization', fps=240, maximumGapTime=0.1, resultDir="", **kwargs):
         if 'visualization' not in kind:

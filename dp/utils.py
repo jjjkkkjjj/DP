@@ -111,7 +111,14 @@ def csvReader(csvfile, dir):
 
 def contexts(contextType):
     if contextType == 'Baseball':
-        contexts = []
+        contexts = [['RFHD', 'LFHD'], ['RBHD', 'LBHD'],
+                    ['T10', 'RBAK'],
+                    ['CLAV', 'RSHO', 'LSHO'],
+                    ['RELB', 'RUPA', 'RFRM'], ['LELB', 'LUPA', 'LFRM'],
+                    ['RFIN', 'RWRA', 'RWRB'], ['LFIN', 'LWRA', 'LWRB'],
+                    ['LPSI', 'RPSI'],
+                    ['RTHI', 'RASI', 'RKNE'], ['LTHI', 'LASI', 'LKNE'],
+                    ['RANK', 'RTOE', 'RTIB'], ['LANK', 'LTOE', 'LTIB']]
         return contexts
     elif contextType == 'Volleyball':
         contexts = [['head', 'R_ear', 'L_ear'],
