@@ -227,6 +227,8 @@ pip-selfcheck.json
 !.gitkeep
 /baseball/__oldfiles
 /baseball/*.csv
+/baseball/compareDP/*
+!.gitkeep
 
 /volleyball/result/*
 !.gitkeep
@@ -238,6 +240,8 @@ pip-selfcheck.json
 !.gitkeep
 /volleyball/__oldfiles
 /volleyball/*.csv
+/volleyball/compareDP/*
+!.gitkeep
 
 # symbolic link
 baseball/dp
