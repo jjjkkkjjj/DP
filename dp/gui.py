@@ -328,7 +328,8 @@ class DPgui(QMainWindow):
             # clear the axes and redraw the plot anew
             #
             self.axes.clear()
-            plt.title('frame number=' + str(self.frame))
+            #plt.title('frame number=' + str(self.frame))
+            self.axes.set_title('frame number=' + str(self.frame))
             self.axes.grid(self.grid_cb.isChecked())
 
             self.axes.set_xlabel('x')
