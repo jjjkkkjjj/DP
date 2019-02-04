@@ -31,12 +31,14 @@ class Visualization(object):
         self.fig = plt.figure()
         plt.xlabel('reference')
         plt.ylabel('input')
+        """
         if xtime > ytime:
             plt.xlim([0, xtime])
             plt.ylim([0, xtime])
         else:
             plt.xlim([0, ytime])
             plt.ylim([0, ytime])
+        """
         plt.gca().set_aspect('equal', adjustable='box')
         plt.vlines([xtime], 0, ytime, linestyles='dashed')
 
@@ -49,8 +51,9 @@ class Visualization(object):
                 plt.plot([0, xtime], [y[joint][0], xtime + y[joint][0]], 'black', linestyle='dashed')
 
         if legend:
-            plt.legend(ncol=2, bbox_to_anchor=(1.05, 1), prop={'size': 6})
-
+            #plt.legend(ncol=2, bbox_to_anchor=(1.05, 1), prop={'size': 18})
+            plt.legend(ncol=1)
+        plt.rcParams["font.size"] = 18
         if title is not None:
             plt.title(title)
 
@@ -59,7 +62,9 @@ class Visualization(object):
         else:
             if not os.path.isdir(os.path.dirname(savepath)):
                 os.mkdir(os.path.dirname(savepath))
-            plt.savefig(savepath, bbox_inches="tight")
+            #plt.savefig(savepath, bbox_inches="tight")
+            plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.2)
+            plt.savefig(savepath)
             if verbose:
                 print('saved {0}'.format(savepath))
 

@@ -223,11 +223,17 @@ class LeftDockWidget(QWidget):
     def doneClicked(self):
         if self.comboBoxSkeltonType.currentText() == 'Baseball' and os.path.basename(self.refPath)[-4:] in ['.csv', '.CSV']:
             refData = self.dpModule['csvReader'](os.path.basename(self.refPath), os.path.dirname(self.refPath))
+            # rename joint
+            for joint in list(refData.joints.keys()):
+                refData.joints[joint.split(':')[-1]] = refData.joints.pop(joint)
         else:
             refData = self.dpModule['Data']()
             refData.set_from_trc(self.refPath)
         if self.comboBoxSkeltonType.currentText() == 'Baseball' and os.path.basename(self.inpPath)[-4:] in ['.csv', '.CSV']:
             inpData = self.dpModule['csvReader'](os.path.basename(self.inpPath), os.path.dirname(self.inpPath))
+            # rename joint
+            for joint in list(inpData.joints.keys()):
+                inpData.joints[joint.split(':')[-1]] = inpData.joints.pop(joint)
         else:
             inpData = self.dpModule['Data']()
             inpData.set_from_trc(self.inpPath)
@@ -245,13 +251,12 @@ class LeftDockWidget(QWidget):
 
             fps = int(self.lineeditFps.text())
             maximumGapTime = float(self.lineEditMaxGapTime.text())
-            implementKwargs = {'fps': fps, 'maximumGapTime': maximumGapTime}
+            implementKwargs = {'kind': 'visualization2', 'fps': fps, 'maximumGapTime': maximumGapTime}
             calcType = str(self.comboBoxCalculationType.currentText())
             if calcType == 'Independent':
                 DP_ = self.dpModule['DP'](**kwargs)
             elif calcType == 'Synchronous Contexts':
                 DP_ = self.dpModule['SyncContextDP'](self.contextsSet['contexts'], **kwargs)
-                implementKwargs['kind'] = 'visualization2'
             elif calcType == 'Asynchronous Contexts':
                 DP_ = self.dpModule['ASyncContextDP'](self.contextsSet['contexts'], **kwargs)
                 # add kinds

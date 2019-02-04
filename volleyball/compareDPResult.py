@@ -93,12 +93,15 @@ def implementDP(name, serve, successNum, failureNum):
         #x, y = {}, {}
 
         title = ''
+        syncname = ''
         for joint in context:
             xi[joint], yi[joint] = Xi[joint], Yi[joint]
-            xs[joint], ys[joint] = Xs[joint], Ys[joint]
             xa[joint], ya[joint] = Xa[joint], Ya[joint]
             title += joint + '-'
+            syncname += joint + ','
         title = title[:-1]
+        syncname = syncname[:-1]
+        xs[syncname], ys[syncname] = Xs[joint], Ys[joint]
 
         resultDir = os.path.join(resultSuperDir, title)
         if not os.path.exists(resultDir):
@@ -106,17 +109,17 @@ def implementDP(name, serve, successNum, failureNum):
 
         viewi = Visualization()
         viewi.show(x=xi, y=yi, xtime=refData.frame_max, ytime=inpData.frame_max,
-              title=title, legend=True, correspondLine=False,
+              title=None, legend=True, correspondLine=False,
               savepath=os.path.join(resultDir, "independent.png"))
 
         views = Visualization()
         views.show(x=xs, y=ys, xtime=refData.frame_max, ytime=inpData.frame_max,
-                  title=title, legend=True, correspondLine=False,
+                  title=None, legend=True, correspondLine=False,
                   savepath=os.path.join(resultDir, "sync.png"))
 
         viewa = Visualization()
         viewa.show(x=xa, y=ya, xtime=refData.frame_max, ytime=inpData.frame_max,
-                  title=title, legend=True, correspondLine=False,
+                  title=None, legend=True, correspondLine=False,
                   savepath=os.path.join(resultDir, "async.png"))
         """
         view = Visualization()
