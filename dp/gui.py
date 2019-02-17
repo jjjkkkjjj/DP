@@ -355,7 +355,7 @@ class DPgui(QMainWindow):
         if type(colors).__name__ == 'list':
             e = colors[0]
             tb = colors[1]
-            QMessageBox.critical(self, "Caution", "Unexpected error occured:{0}, maybe invalid combination".format(e.with_traceback(tb)))
+            QMessageBox.critical(self, "Caution", "Unexpected error occured:{0}".format(e.with_traceback(tb)))
             return
         self.done = True
         self.colors = colors
@@ -540,3 +540,10 @@ class NormalViewer(gui3d):
     def setFinFrame(self):
         ini, fin = str(self.qlabel.text()).split('~')
         self.qlabel.setText('{0}~{1}'.format(ini, self.frame))
+
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    gui = DPgui()
+    gui.show()
+    sys.exit(app.exec_())
