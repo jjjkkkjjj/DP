@@ -88,7 +88,7 @@ class SyncContextDP(DP):
             self.totalCosts[contextKey] = np.nanmin(matchingCost[self.reference.frame_max - 1]) / self.reference.frame_max
 
     def resultVisualization(self, kind='visualization', fps=240, maximumGapTime=0.1, resultDir="", **kwargs):
-        if 'visualization' not in kind:
+        if 'visualization' not in kind and 'localdiff' not in kind:
             raise NameError('{0} is invalid kind name'.format(kind))
         # calc sync dp for each context
         myMatchingCostFunc = constraint(kind)
@@ -102,7 +102,10 @@ class SyncContextDP(DP):
         self.correspondents = newcorrespondents
 
         # solve colormap of timing gaps
-        return super().calc_visualization(fps=fps, maximumGapTime=maximumGapTime)
+        if 'visualization' in kind:
+            return super().calc_visualization(fps=fps, maximumGapTime=maximumGapTime)
+        else: # localdiff
+            return super().calc_visualization_localdiff(fps=fps, maximumGapTime=maximumGapTime)
 
     def resultData(self):
         if len(self.correspondents) == 0:
@@ -209,10 +212,12 @@ class AsyncContextDP(DP):
 
 
     def resultVisualization(self, kind='visualization2', fps=240, maximumGapTime=0.1, resultDir="", **kwargs):
+        if 'visualization' not in kind and 'localdiff' not in kind:
+            raise NameError('{0} is invalid kind name'.format(kind))
         try:
             kinds = kwargs.pop('kinds')
             for kind_ in kinds:
-                if 'visualization2' not in kind_:
+                if kind not in kind_ and kind not in kind_:
                     raise ValueError('all kinds must be included \'visualization2\' but got {0}'.format(kind_))
             self.asyncCorrespondInitial(kinds)
         except KeyError:
@@ -226,7 +231,10 @@ class AsyncContextDP(DP):
         self.correspondents = newcorrespondents
 
         # solve colormap of timing gaps
-        return super().calc_visualization(fps=fps, maximumGapTime=maximumGapTime)
+        if 'visualization' in kind:
+            return super().calc_visualization(fps=fps, maximumGapTime=maximumGapTime)
+        else: # localdiff
+            return super().calc_visualization_localdiff(fps=fps, maximumGapTime=maximumGapTime)
 
     def resultData(self):
         if len(self.correspondents) == 0:

@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.spatial.distance import cdist
+from scipy import interpolate
 import sys
 sys.setrecursionlimit(10000)
 import warnings
@@ -234,14 +235,16 @@ class DP(DPBase):
         return x, y
 
     def resultVisualization(self, kind='visualization', fps=240, maximumGapTime=0.1, resultDir="", **kwargs):
-        if 'visualization' not in kind:
+        if 'visualization' not in kind and 'localdiff' not in kind:
             raise NameError('{0} is invalid kind name'.format(kind))
         myMatchingCostFunc = constraint(kind=kind)
 
         self.calcCorrespondInitial(showresult=False, resultdir=resultDir, myMatchingCostFunc=myMatchingCostFunc,
                                    correspondLine=True)
-
-        return self.calc_visualization(fps=fps, maximumGapTime=maximumGapTime)
+        if 'visualization' in kind:
+            return self.calc_visualization(fps=fps, maximumGapTime=maximumGapTime)
+        else: # localdiff
+            return self.calc_visualization_localdiff(fps=fps, maximumGapTime=maximumGapTime)
 
     def calc_visualization(self, fps=240, maximumGapTime=0.1):
         Ref, Inp = self.resultData()
@@ -315,6 +318,70 @@ class DP(DPBase):
         colors = np.array(colors).transpose((1, 0, 2))
 
         return colors
+
+    def calc_visualization_localdiff(self, fps=240, maximumGapTime=0.1):
+        Ref, Inp = self.resultData()
+
+        # colors is ndarray:[time, joint(index)]
+        colors = []  # slope = 1 -> 0pt, slope = 2 -> 1pt, slope = 1/2 -> -1pt
+        maximumGap = int(fps * maximumGapTime)
+        if maximumGap < 2:
+            raise ValueError('running average range(= fps*maximumGapTime) must be more than 2')
+
+        averageInputFrame = np.mean([inp for inp in Inp.values()], axis=0).astype('int')
+
+        for joint in self.input.joints.keys():
+            if joint not in list(Ref.keys()):
+                hsv = np.zeros((self.input.frame_max, 3))
+                colors.append(hsv_to_rgb(hsv))
+                continue
+
+            inp = Inp[joint]
+
+
+            localDiff = inp - averageInputFrame
+
+            interp = interpolate.interp1d(inp, localDiff)
+
+            init = inp[0]
+            fin = inp[-1]
+            interpInp = np.arange(init, fin + 1)
+            localDiff = interp(interpInp) / float(maximumGap)
+            
+            localDiff[localDiff < -1] = -1
+            localDiff[localDiff > 1] = 1
+
+            hsvInpArea = np.zeros((localDiff.size, 3))  # [time, (h,s,v)]
+            # red means fast
+            redIndices = localDiff >= 0
+
+            hsvInpArea[redIndices, 0] = 0.0
+            # hsvInpArea[redIndices, 1] = scores[redIndices]
+            # hsvInpArea[redIndices, 2] = 1.0
+            ### center color is black
+            hsvInpArea[redIndices, 1] = 1.0
+            hsvInpArea[redIndices, 2] = localDiff[redIndices]
+            # blue means slow
+            blueIndices = localDiff < 0
+            hsvInpArea[blueIndices, 0] = 2 / 3.0
+            # hsvInpArea[blueIndices, 1] = np.abs(scores[blueIndices])
+            # hsvInpArea[blueIndices, 2] = 1.0
+            ### center color is black
+            hsvInpArea[blueIndices, 1] = 1.0
+            hsvInpArea[blueIndices, 2] = np.abs(localDiff[blueIndices])
+
+            hsv = np.zeros((self.input.frame_max, 3))
+            hsv[init:fin + 1, :] = hsvInpArea
+
+            # print((init, fin))
+            # each terminate time is difference
+            colors.append(hsv_to_rgb(hsv))
+
+        colors = np.array(colors).transpose((1, 0, 2))
+
+        return colors
+
+
 
     def lowMemoryCalc(self, jointNames, showresult=False, resultdir="", myLocalCosts=None, myMatchingCostFunc=None, correspondLine=True, returnMatchingCosts=False):
         pass

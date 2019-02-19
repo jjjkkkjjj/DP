@@ -257,7 +257,7 @@ def constraint(kind='default'):
             exit()
         """
 
-    elif kind == 'visualization2' or kind == 'refskip':
+    elif kind == 'visualization2' or kind == 'localdiff':
         def refskipCalc(localCost):
             matchingCost = np.zeros(localCost.shape)
             matchingCost[0, :] = localCost[0, :]
@@ -286,7 +286,7 @@ def constraint(kind='default'):
                 raise OverflowError('all matching cost are infinity')
             return matchingCost
 
-        if kind == 'refskip':
+        if kind == 'localdiff':
             def syncBackTrack(**kwargs):
                 localCost = kwargs.get('localCost')
                 matchingCost = kwargs.pop('matchingCost')
@@ -295,10 +295,12 @@ def constraint(kind='default'):
 
                 correspondentPoints = []
                 r, i = matchingCost.shape[0] - 1, inputFinFrameBackTracked
-                correspondentPoints.append([r, i])
+
                 if matchingCost.shape[0] % 2 == 0:
                     r = r - 1
                     correspondentPoints.insert(0, [r - 1, i])
+                else:
+                    correspondentPoints.insert(0, [r, i])
 
                 while r > 0:
                     tmp = matchingCost[r - 2, max(0, i - 4):i - 1]  # i-4~i-1
@@ -666,7 +668,7 @@ def lowMemoryConstraint(kind='default'):
 
         return {'matchingCost': asyncCalc, 'backTrack': asyncBackTrack}
 
-    elif kind == 'async2-visualization2': #or kind == 'async2-synm':
+    elif kind == 'async2-visualization2' or kind == 'async2-localdiff': #or kind == 'async2-synm':
         limits = 2
         def _async2LocalCost(refDataBase, refDataPeripheral, inpDataBase, inpDataPeripheral):
             R, I = refDataBase.shape[0], inpDataBase.shape[0]
@@ -751,8 +753,8 @@ def lowMemoryConstraint(kind='default'):
                 correspondentPointsBase.insert(0, [r - 1, i])
                 correspondentPointsPeripheral.insert(0, [r - 1, i + epsilon])
             else:
-                correspondentPointsBase.append([r, i])
-                correspondentPointsPeripheral.append([r, i + epsilon])
+                correspondentPointsBase.insert(0, [r, i])
+                correspondentPointsPeripheral.insert(0, [r, i + epsilon])
 
             """
             epsilon\i| i-1    i-2   i-3   i-4(tmp=0,1,2)
@@ -804,13 +806,14 @@ def lowMemoryConstraint(kind='default'):
                 tmp = np.argmin(tmp)
                 newepsilon = epsilon + c_[tmp] + forNewEpsilon[epsilon + 2*limits][tmp]
                 tmp = tmp + 1
-                for tmp_i in range(1, tmp):
-                    correspondentPointsBase.insert(0, [r - tmp_i * 2 / tmp, i - tmp_i])
+                if kind == 'async2-visualization2':
+                    for tmp_i in range(1, tmp):
+                        correspondentPointsBase.insert(0, [r - tmp_i * 2 / tmp, i - tmp_i])
 
-                # i + epsilon - (i - tmp + newepsilon) = epsilon + tmp - newepsilon means differences
-                diff = epsilon + tmp - newepsilon
-                for tmp_i in range(1, diff):
-                    correspondentPointsPeripheral.insert(0, [r - tmp_i * 2 / diff, i + epsilon - tmp_i])
+                    # i + epsilon - (i - tmp + newepsilon) = epsilon + tmp - newepsilon means differences
+                    diff = epsilon + tmp - newepsilon
+                    for tmp_i in range(1, diff):
+                        correspondentPointsPeripheral.insert(0, [r - tmp_i * 2 / diff, i + epsilon - tmp_i])
 
                 r = r - 2
                 i = i - tmp
@@ -822,7 +825,7 @@ def lowMemoryConstraint(kind='default'):
 
         return {'matchingCost': async2Calc, 'backTrack': asyncBackTrack}
 
-    elif kind == 'async3-visualization2':
+    elif kind == 'async3-visualization2' or kind == 'async3-localdiff':
         # or kind == 'async2-synm':
         limits = 2
         def _async3LocalCost(refDataBase, refDataPeripheral1, refDataPeripheral2, inpDataBase, inpDataPeripheral1, inpDataPeripheral2):
@@ -935,9 +938,9 @@ def lowMemoryConstraint(kind='default'):
                 correspondentPointsPeripheral1.insert(0, [r - 1, i + epsilon_p1])
                 correspondentPointsPeripheral2.insert(0, [r - 1, i + epsilon_p2])
             else:
-                correspondentPointsBase.append([r, i])
-                correspondentPointsPeripheral1.append([r, i + epsilon_p1])
-                correspondentPointsPeripheral2.append([r, i + epsilon_p2])
+                correspondentPointsBase.insert(0, [r, i])
+                correspondentPointsPeripheral1.insert(0, [r, i + epsilon_p1])
+                correspondentPointsPeripheral2.insert(0, [r, i + epsilon_p2])
 
             """
             epsilon\i| i-1    i-2   i-3   i-4(tmp=0,1,2)
@@ -992,17 +995,18 @@ def lowMemoryConstraint(kind='default'):
                 newepsilon_p1 = epsilon_p1 + c_p1[tmp] + forNewEpsilon[epsilon_p1 + 2 * limits][tmp]
                 newepsilon_p2 = epsilon_p2 + c_p2[tmp] + forNewEpsilon[epsilon_p2 + 2 * limits][tmp]
                 tmp = tmp + 1
-                for tmp_i in range(1, tmp):
-                    correspondentPointsBase.insert(0, [r - tmp_i * 2 / tmp, i - tmp_i])
+                if kind == 'async3-visualization2':
+                    for tmp_i in range(1, tmp):
+                        correspondentPointsBase.insert(0, [r - tmp_i * 2 / tmp, i - tmp_i])
 
-                # i + epsilon - (i - tmp + newepsilon) = epsilon + tmp - newepsilon means differences
-                diff = epsilon_p1 + tmp - newepsilon_p1
-                for tmp_i in range(1, diff):
-                    correspondentPointsPeripheral1.insert(0, [r - tmp_i * 2 / diff, i + epsilon_p1 - tmp_i])
+                    # i + epsilon - (i - tmp + newepsilon) = epsilon + tmp - newepsilon means differences
+                    diff = epsilon_p1 + tmp - newepsilon_p1
+                    for tmp_i in range(1, diff):
+                        correspondentPointsPeripheral1.insert(0, [r - tmp_i * 2 / diff, i + epsilon_p1 - tmp_i])
 
-                diff = epsilon_p2 + tmp - newepsilon_p2
-                for tmp_i in range(1, diff):
-                    correspondentPointsPeripheral2.insert(0, [r - tmp_i * 2 / diff, i + epsilon_p2 - tmp_i])
+                    diff = epsilon_p2 + tmp - newepsilon_p2
+                    for tmp_i in range(1, diff):
+                        correspondentPointsPeripheral2.insert(0, [r - tmp_i * 2 / diff, i + epsilon_p2 - tmp_i])
 
                 r = r - 2
                 i = i - tmp

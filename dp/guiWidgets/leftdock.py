@@ -251,7 +251,8 @@ class LeftDockWidget(QWidget):
 
             fps = int(self.lineeditFps.text())
             maximumGapTime = float(self.lineEditMaxGapTime.text())
-            implementKwargs = {'kind': 'visualization2', 'fps': fps, 'maximumGapTime': maximumGapTime}
+            #implementKwargs = {'kind': 'visualization2', 'fps': fps, 'maximumGapTime': maximumGapTime}
+            implementKwargs = {'kind': 'localdiff', 'fps': fps, 'maximumGapTime': maximumGapTime}
             calcType = str(self.comboBoxCalculationType.currentText())
             if calcType == 'Independent':
                 DP_ = self.dpModule['DP'](**kwargs)
@@ -262,7 +263,8 @@ class LeftDockWidget(QWidget):
                 # add kinds
                 kinds = []
                 for context in self.contextsSet['contexts']:
-                    kinds.append('async{0}-visualization2'.format(len(context)))
+                    #kinds.append('async{0}-visualization2'.format(len(context)))
+                    kinds.append('async{0}-localdiff'.format(len(context)))
                 implementKwargs['kinds'] = kinds
 
             else:
