@@ -331,6 +331,10 @@ class DPgui(QMainWindow):
             #plt.title('frame number=' + str(self.frame))
             self.axes.set_title('frame number=' + str(self.frame))
             self.axes.grid(self.grid_cb.isChecked())
+            self.axes.tick_params(labelbottom=self.grid_cb.isChecked(), labelleft=self.grid_cb.isChecked(),
+                                  labelright=self.grid_cb.isChecked(), labeltop=self.grid_cb.isChecked(),
+                                  bottom=self.grid_cb.isChecked(), left=self.grid_cb.isChecked(),
+                                  right=self.grid_cb.isChecked(), top=self.grid_cb.isChecked())
 
             self.axes.set_xlabel('x')
             self.axes.set_ylabel('y')
@@ -372,6 +376,11 @@ class DPgui(QMainWindow):
         self.axes.clear()
         plt.title('frame number=' + str(self.frame))
         self.axes.grid(self.grid_cb.isChecked())
+        self.axes.tick_params(labelbottom=self.grid_cb.isChecked(), labelleft=self.grid_cb.isChecked(),
+                              labelright=self.grid_cb.isChecked(), labeltop=self.grid_cb.isChecked(),
+                              bottom=self.grid_cb.isChecked(), left=self.grid_cb.isChecked(),
+                              right=self.grid_cb.isChecked(), top=self.grid_cb.isChecked())
+        
         self.setViewRange()
 
         self.axes.set_xlabel('x')
