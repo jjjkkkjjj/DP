@@ -330,15 +330,19 @@ class DPgui(QMainWindow):
             self.axes.clear()
             #plt.title('frame number=' + str(self.frame))
             self.axes.set_title('frame number=' + str(self.frame))
-            self.axes.grid(self.grid_cb.isChecked())
-            self.axes.tick_params(labelbottom=self.grid_cb.isChecked(), labelleft=self.grid_cb.isChecked(),
-                                  labelright=self.grid_cb.isChecked(), labeltop=self.grid_cb.isChecked(),
-                                  bottom=self.grid_cb.isChecked(), left=self.grid_cb.isChecked(),
-                                  right=self.grid_cb.isChecked(), top=self.grid_cb.isChecked())
 
             self.axes.set_xlabel('x')
             self.axes.set_ylabel('y')
             self.axes.set_zlabel('z')
+            if not self.grid_cb.isChecked():
+                self.axes.grid(self.grid_cb.isChecked())
+                self.axes.tick_params(labelbottom=self.grid_cb.isChecked(), labelleft=self.grid_cb.isChecked(),
+                                      labelright=self.grid_cb.isChecked(), labeltop=self.grid_cb.isChecked(),
+                                      bottom=self.grid_cb.isChecked(), left=self.grid_cb.isChecked(),
+                                      right=self.grid_cb.isChecked(), top=self.grid_cb.isChecked())
+                self.axes.set_xlabel('')
+                self.axes.set_ylabel('')
+                self.axes.set_zlabel('')
 
             # restore previous view point
             self.axes.set_xlim(xlim)
@@ -373,29 +377,7 @@ class DPgui(QMainWindow):
         self.frame_max = self.x.shape[0]
         # clear the axes and redraw the plot anew
         #
-        self.axes.clear()
-        plt.title('frame number=' + str(self.frame))
-        self.axes.grid(self.grid_cb.isChecked())
-        self.axes.tick_params(labelbottom=self.grid_cb.isChecked(), labelleft=self.grid_cb.isChecked(),
-                              labelright=self.grid_cb.isChecked(), labeltop=self.grid_cb.isChecked(),
-                              bottom=self.grid_cb.isChecked(), left=self.grid_cb.isChecked(),
-                              right=self.grid_cb.isChecked(), top=self.grid_cb.isChecked())
-        
         self.setViewRange()
-
-        self.axes.set_xlabel('x')
-        self.axes.set_ylabel('y')
-        self.axes.set_zlabel('z')
-
-        self.scatter = [
-            self.axes.scatter3D(self.x[self.frame, i], self.y[self.frame, i], self.z[self.frame, i], ".",
-                                color=self.colors[self.frame, i]) for i in range(len(self.joints))]
-        for line in self.lines:
-            self.axes.plot([self.x[self.frame, line[0]], self.x[self.frame, line[1]]],
-                           [self.y[self.frame, line[0]], self.y[self.frame, line[1]]],
-                           [self.z[self.frame, line[0]], self.z[self.frame, line[1]]], "-", color='black')
-        self.canvas.draw()
-
         self.slider.setValue(0)
         self.draw()
 
