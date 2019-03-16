@@ -343,6 +343,9 @@ class DPgui(QMainWindow):
                 self.axes.set_xlabel('')
                 self.axes.set_ylabel('')
                 self.axes.set_zlabel('')
+                #self.axes.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+                #self.axes.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+                #self.axes.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
 
             # restore previous view point
             self.axes.set_xlim(xlim)
