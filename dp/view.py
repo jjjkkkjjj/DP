@@ -10,6 +10,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
+from .guiWidgets.progressDialog import *
 import numpy as np
 import cv2
 import sys
@@ -104,66 +105,7 @@ class gui3d(QMainWindow):
         self.draw(fix=False)
 
     def draw(self, fix=False):
-        if fix:
-            azim = self.axes.azim
-            elev = self.axes.elev
-            xlim = list(self.axes.get_xlim())
-            ylim = list(self.axes.get_ylim())
-            zlim = list(self.axes.get_zlim())
-            addlim = np.max([xlim[1] - xlim[0], ylim[1] - ylim[0], zlim[1] - zlim[0]])
-            xlim[1] = xlim[0] + addlim
-            ylim[1] = ylim[0] + addlim
-            zlim[1] = zlim[0] + addlim
-        # clear the axes and redraw the plot anew
-        #
-        self.axes.clear()
-        plt.title('frame number=' + str(self.frame))
-        self.axes.grid(self.grid_cb.isChecked())
-
-        self.axes.set_xlabel('x')
-        self.axes.set_ylabel('y')
-        self.axes.set_zlabel('z')
-
-        if fix:
-            self.axes.set_xlim(xlim)
-            self.axes.set_ylim(ylim)
-            self.axes.set_zlim(zlim)
-            self.axes.view_init(elev=elev, azim=azim)
-
-        if self.colors is not None:
-            self.scatter = [
-                self.axes.scatter3D(self.x[self.frame, i], self.y[self.frame, i], self.z[self.frame, i], ".",
-                                    color=self.colors[self.frame, i], picker=5) for i in range(len(self.joints))]
-        else:
-            self.scatter = [
-                self.axes.scatter3D(self.x[self.frame, i], self.y[self.frame, i], self.z[self.frame, i], ".", edgecolor='black',
-                                    color='black', picker=5) for i in range(len(self.joints))]
-            pass
-
-        if self.lines is not None:
-            for line in self.lines:
-                self.axes.plot([self.x[self.frame, line[0]], self.x[self.frame, line[1]]],
-                               [self.y[self.frame, line[0]], self.y[self.frame, line[1]]],
-                               [self.z[self.frame, line[0]], self.z[self.frame, line[1]]], "-", color='black')
-        """
-        if self.trajectory_line is not None:
-            self.axes.lines.extend(self.trajectory_line)
-
-        self.scatter = [
-            self.axes.scatter3D(self.x[self.frame, i], self.y[self.frame, i], self.z[self.frame, i], ".",
-                                color='blue', picker=5) for i in range(len(self.joints))]
-
-        if self.now_select != -1:
-            self.scatter[self.now_select] = self.axes.scatter3D(self.x[self.frame, self.now_select],
-                                                                self.y[self.frame, self.now_select],
-                                                                self.z[self.frame, self.now_select], ".",
-                                                                color='red', picker=5)
-
-        if self.leftdockwidget.check_showbone.isChecked():
-            for bone1, bone2 in zip(self.bone1[self.frame], self.bone2[self.frame]):
-                self.axes.plot([bone1[0], bone2[0]], [bone1[1], bone2[1]], [bone1[2], bone2[2]], "-",
-                               color="black")
-        """
+        self._update(*tuple(self.getViewRange()))
         self.canvas.draw()
 
     def create_menu(self):
@@ -296,19 +238,22 @@ class gui3d(QMainWindow):
     def save(self):
         filters = "MP4 files(*.MP4)"
         # selected_filter = "CSV files(*.csv)"
-        savepath, extension = QFileDialog.getSaveFileNameAndFilter(self, 'Save file', '', filters)
+        savepath, extension = QFileDialog.getSaveFileName(self, 'Save file', '3d.MP4', filters)
 
-        savepath = str(savepath).encode()
-        extension = str(extension).encode()
+        savepath = str(savepath)#.encode()
+        extension = str(extension)#.encode()
         # print(extension)
+        savepath, extension = os.path.splitext(savepath)
+
         if savepath != "":
-            savepath += '.MP4'
+            if len(savepath.split('.')) == 1:
+                savepath += '.MP4'
 
             self.saveVideo(savepath)
 
-            QMessageBox.information(self, "Saved", "Saved to {0}".format(savepath))
+            #QMessageBox.information(self, "Saved", "Saved to {0}".format(savepath))
 
-    def setViewRange(self):
+    def getViewRange(self):
         azim = self.axes.azim
         elev = self.axes.elev
         xlim = list((np.nanmin(self.x), np.nanmax(self.x)))
@@ -319,94 +264,92 @@ class gui3d(QMainWindow):
         ylim[1] = ylim[0] + addlim
         zlim[1] = zlim[0] + addlim
 
+        return xlim, ylim, zlim, elev, azim
+
+    def setViewRange(self):
+        self.setViewRange_(*tuple(self.getViewRange()))
+
+    def setViewRange_(self, xlim, ylim, zlim, elev, azim):
         self.axes.set_xlim(xlim)
         self.axes.set_ylim(ylim)
         self.axes.set_zlim(zlim)
         self.axes.view_init(elev=elev, azim=azim)
 
     def saveVideo(self, savepath):
-        size = (600, 400)
-        sys.stdout.write('\r')
-        sys.stdout.flush()
+        imgw, imgh = 600, 400
+
+        xlim, ylim, zlim, elev, azim = self.getViewRange()
+
+        nowFrame = self.frame
+
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        video = cv2.VideoWriter(savepath, fourcc, self.fps, size)
+        video = cv2.VideoWriter(savepath, fourcc, self.fps, (imgw, imgh))
+        class save3d(Implement):
+            def run(sself):
+                try:
+                    for frame in range(self.x.shape[0]):
+                        if not sself.flag:
+                            video.release()
+                            sself.abort('terminated')
+                            break
+                        percent = int((frame + 1.0) * 100 / self.x.shape[0])
+                        sself.setValue(percent, appendedText=': saving to \'{0}\' now...'.format(savepath))
+                        #self.slider.setValue(frame)
+                        self.frame = frame
+                        self._update(xlim, ylim, zlim, elev, azim)
+                        self.axes.figure.canvas.draw()
+                        # convert canvas to image
+                        # self.canvas.draw()
+                        width, height = self.fig.get_size_inches() * self.fig.get_dpi()
+                        img = np.fromstring(self.fig.canvas.tostring_rgb(), dtype='uint8', sep='').reshape(int(height),
+                                                                                                           int(width),
+                                                                                                           3)
+                        # img is rgb, convert to opencv's default bgr
+                        img = cv2.resize(cv2.cvtColor(img, cv2.COLOR_RGB2BGR), (imgw, imgh))
 
-        azim = self.axes.azim
-        elev = self.axes.elev
-        xlim = list(self.axes.get_xlim())
-        ylim = list(self.axes.get_ylim())
-        zlim = list(self.axes.get_zlim())
-        addlim = np.max([xlim[1] - xlim[0], ylim[1] - ylim[0], zlim[1] - zlim[0]])
-        xlim[1] = xlim[0] + addlim
-        ylim[1] = ylim[0] + addlim
-        zlim[1] = zlim[0] + addlim
+                        video.write(img)
 
-        self.axes.set_xlim(xlim)
-        self.axes.set_ylim(ylim)
-        self.axes.set_zlim(zlim)
-        self.axes.view_init(elev=elev, azim=azim)
-        sys.stdout.write('\n')
-        sys.stdout.flush()
-        for frame in range(self.x.shape[0]):
-            percent = int((frame + 1.0) * 100 / self.x.shape[0])
-            sys.stdout.write(
-                '\r|{0}| {1}% finished'.format('#' * int(percent * 0.2) + '-' * (20 - int(percent * 0.2)), percent))
-            sys.stdout.flush()
-            self.__update3d(frame, xlim, ylim, zlim)
+                    video.release()
+                    sself.finish()
+                except Exception as e:
+                    tb = sys.exc_info()[2]
+                    sself.finSignal.emit([e, tb])
 
-            # convert canvas to image
-            self.axes.figure.canvas.draw()
-            """
-            img = np.fromstring(self.axes.figure.canvas.tostring_rgb(), dtype=np.uint8,
-                                sep='')
+        saveDP = ProgressBar(save3d(), self, closeDialogComment="Saved to \'{0}\'".format(savepath))
+        saveDP.run()
+        self.slider.setValue(nowFrame)
 
-            print (self.axes.figure.canvas.get_width_height()[::-1])
-            print (self.axes.figure.canvas.get_width_height())
-            exit()
-            img = img.reshape(self.axes.figure.canvas.get_width_height()[::-1] + (3,))
-            """
-            width, height = self.fig.get_size_inches() * self.fig.get_dpi()
-            img = np.fromstring(self.fig.canvas.tostring_rgb(), dtype='uint8', sep='').reshape(int(height), int(width), 3)
-            # img is rgb, convert to opencv's default bgr
-            img = cv2.resize(cv2.cvtColor(img, cv2.COLOR_RGB2BGR), size)
+    def _update(self, xlim, ylim, zlim, elev, azim):
+        self.axes.clear()
+        self.axes.set_title('frame number=' + str(self.frame))
+        self.axes.grid(self.grid_cb.isChecked())
 
-            video.write(img)
+        self.axes.set_xlabel('x')
+        self.axes.set_ylabel('y')
+        self.axes.set_zlabel('z')
+        if not self.grid_cb.isChecked():
+            self.axes.grid(self.grid_cb.isChecked())
+            self.axes.tick_params(labelbottom=self.grid_cb.isChecked(), labelleft=self.grid_cb.isChecked(),
+                                  labelright=self.grid_cb.isChecked(), labeltop=self.grid_cb.isChecked(),
+                                  bottom=self.grid_cb.isChecked(), left=self.grid_cb.isChecked(),
+                                  right=self.grid_cb.isChecked(), top=self.grid_cb.isChecked())
+            self.axes.set_xlabel('')
+            self.axes.set_ylabel('')
+            self.axes.set_zlabel('')
 
-            # display image with opencv or any operation you like
-            # cv2.imshow("plot", img)
-            # k = cv2.waitKey(int(100*1.0/fps))
-            # if k == ord('q'):
-            #    show = False
-            #    break
-
-        video.release()
-        sys.stdout.write('\rsaved to {0}\n'.format(savepath))
-        sys.stdout.flush()
-
-
-    def __update3d(self, frame, xrange, yrange, zrange):
-        if frame != 0:
-            self.axes.cla()
-
-            self.axes.set_xlim(xrange)
-            self.axes.set_ylim(yrange)
-            self.axes.set_zlim(zrange)
+        # restore previous view point
+        self.setViewRange_(xlim, ylim, zlim, elev, azim)
 
         if self.colors is not None:
             self.scatter = [
-                self.axes.scatter3D(self.x[frame, i], self.y[frame, i], self.z[frame, i], ".",
-                                    color=self.colors[frame, i], picker=5) for i in range(len(self.joints))]
+                self.axes.scatter3D(self.x[self.frame, i], self.y[self.frame, i], self.z[self.frame, i], ".",
+                                    color=self.colors[self.frame, i], picker=5) for i in range(len(self.joints))]
         else:
             self.scatter = [
-                self.axes.scatter3D(self.x[frame, i], self.y[frame, i], self.z[frame, i], ".", edgecolor='black',
+                self.axes.scatter3D(self.x[self.frame, i], self.y[self.frame, i], self.z[self.frame, i], ".", edgecolor='black',
                                     color='black', picker=5) for i in range(len(self.joints))]
-        #self.axes.scatter3D(self.x[frame], self.y[frame], self.z[frame], ".")
 
-        if self.lines is not None:
-            for line in self.lines:
-                self.axes.plot([self.x[frame, line[0]], self.x[frame, line[1]]],
-                               [self.y[frame, line[0]], self.y[frame, line[1]]],
-                               [self.z[frame, line[0]], self.z[frame, line[1]]], "-", color='black')
-
-        plt.title('frame:{0}'.format(frame))
-
+        for line in self.lines:
+            self.axes.plot([self.x[self.frame, line[0]], self.x[self.frame, line[1]]],
+                           [self.y[self.frame, line[0]], self.y[self.frame, line[1]]],
+                           [self.z[self.frame, line[0]], self.z[self.frame, line[1]]], "-", color='black')

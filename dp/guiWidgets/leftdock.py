@@ -162,6 +162,8 @@ class LeftDockWidget(QWidget):
         self.inpPath = None
         self.labelRealRefPath.setText("No selected")
         self.labelRealInpPath.setText("No selected")
+        self.buttonViewRefPath.setEnabled(False)
+        self.buttonViewInpPath.setEnabled(False)
 
         self.contextsSet = {'type': 'Default', 'contexts': self.dpModule['contexts'](str(self.comboBoxSkeltonType.currentText()))}
         self.labelContextsType.setText(self.contextsSet['type'])
@@ -186,7 +188,7 @@ class LeftDockWidget(QWidget):
                 self.labelRealRefPath.setText(os.path.basename(self.refPath))
                 exec('self.parent.caches[\'prevDir{0}\'] = os.path.dirname(self.refPath)'.format(
                     self.comboBoxSkeltonType.currentText()))
-                self.buttonViewRefPath.setEnabled(True)
+                self.buttonViewRefPath.setEnabled(str(self.comboBoxSkeltonType.currentText()) == 'Baseball')
             else:
                 self.refPath = None
                 self.labelRealRefPath.setText("No selected")
@@ -199,7 +201,7 @@ class LeftDockWidget(QWidget):
                 self.labelRealInpPath.setText(os.path.basename(self.inpPath))
                 exec('self.parent.caches[\'prevDir{0}\'] = os.path.dirname(self.inpPath)'.format(
                     self.comboBoxSkeltonType.currentText()))
-                self.buttonViewInpPath.setEnabled(True)
+                self.buttonViewInpPath.setEnabled(str(self.comboBoxSkeltonType.currentText()) == 'Baseball')
             else:
                 self.inpPath = None
                 self.labelRealInpPath.setText("No selected")

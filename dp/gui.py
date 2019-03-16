@@ -19,6 +19,7 @@ from PyQt5.QtCore import *
 import numpy as np
 from .guiWidgets.preference import PreferenceDialog, readPreference, writePreference
 from .guiWidgets.leftdock import LeftDockWidget
+from .guiWidgets.progressDialog import Implement, ProgressBar
 import cv2
 
 
@@ -41,6 +42,9 @@ class DPgui(QMainWindow):
         self.x = None
         self.y = None
         self.z = None
+        self.xbutton = False
+        self.ybutton = False
+        self.zbutton = False
         self.joints = None
         self.lines = None
         self.frame_max = 0
@@ -85,9 +89,9 @@ class DPgui(QMainWindow):
         #input_action = self.create_action("&Input", slot=self.input_trcfile, shortcut="Ctrl+I", tip="Input csv file")
         #self.add_actions(self.file_menu, (input_action,))
 
-        saveVideo_action = self.create_action("Save as video", slot=self.saveVideo, shortcut="Ctrl+S", tip="save DP result as video")
-        self.add_actions(self.file_menu, (saveVideo_action,))
-        saveVideo_action.setEnabled(False)
+        self.saveVideo_action = self.create_action("Save as video", slot=self.saveVideo, shortcut="Ctrl+S", tip="save DP result as video")
+        self.add_actions(self.file_menu, (self.saveVideo_action,))
+        self.saveVideo_action.setEnabled(False)
 
         quit_action = self.create_action("&Quit", slot=self.close, shortcut="Ctrl+Q", tip="Close the application")
         self.add_actions(self.file_menu, (None, quit_action))
@@ -249,7 +253,69 @@ class DPgui(QMainWindow):
         QMessageBox.about(self, "About the demo", msg.strip())
 
     def saveVideo(self):
-        pass
+        filters = "MP4 files(*.MP4)"
+        # selected_filter = "CSV files(*.csv)"
+        inidir = self.caches['prevDirVolleyball']
+        if self.leftdockwidget.comboBoxSkeltonType.currentText() == 'Baseball':
+            inidir = self.caches['prevDirBaseball']
+        initFileName, _ = os.path.splitext(str(self.leftdockwidget.labelRealInpPath.text()))
+
+        #savepath, extension = QFileDialog.getSaveFileName(self, 'Save file', inidir, filters, options=QFileDialog.DontUseNativeDialog)
+        savepath, extension = QFileDialog.getSaveFileName(self, 'Save file', os.path.join(inidir, initFileName), filters)
+        savepath = str(savepath)
+        extension = str(extension)
+        # print(extension)
+        if savepath == "":
+            QMessageBox.critical(self, "Error", "Unexpected Error was occurred")
+            return
+        savepath, extension = os.path.splitext(savepath)
+        if len(savepath.split('.')) == 1:
+            savepath += '.MP4'
+
+        imgw, imgh = 600, 400
+
+        xlim, ylim, zlim, elev, azim = self.getViewRange()
+
+        nowFrame = self.frame
+
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        video = cv2.VideoWriter(savepath, fourcc, int(self.leftdockwidget.lineeditFps.text()), (imgw, imgh))
+        class SaveDP(Implement):
+            def run(sself):
+                try:
+                    for frame in range(self.x.shape[0]):
+                        if not sself.flag:
+                            video.release()
+                            sself.abort('terminated')
+                            break
+                        percent = int((frame + 1.0) * 100 / self.x.shape[0])
+                        sself.setValue(percent, appendedText=': saving to \'{0}\' now...'.format(savepath))
+                        #self.sliderSetValue(frame)
+                        self._update(xlim, ylim, zlim, elev, azim)
+                        self.axes.figure.canvas.draw()
+                        # convert canvas to image
+                        #self.canvas.draw()
+                        width, height = self.fig.get_size_inches() * self.fig.get_dpi()
+                        img = np.fromstring(self.fig.canvas.tostring_rgb(), dtype='uint8', sep='').reshape(int(height),
+                                                                                                       int(width),
+                                                                                                           3)
+                        # img is rgb, convert to opencv's default bgr
+                        img = cv2.resize(cv2.cvtColor(img, cv2.COLOR_RGB2BGR), (imgw, imgh))
+
+                        video.write(img)
+
+                    video.release()
+                    sself.finish()
+                except Exception as e:
+                    tb = sys.exc_info()[2]
+                    sself.finSignal.emit([e, tb])
+
+        saveDP = ProgressBar(SaveDP(), self, closeDialogComment="Saved to \'{0}\'".format(savepath))
+        saveDP.run()
+
+        # revert view
+        self.sliderSetValue(nowFrame)
+        self.draw()
 
     def preference(self):
         preferenceDialog = PreferenceDialog(self.dpModule['constraint'], self)
@@ -275,6 +341,7 @@ class DPgui(QMainWindow):
     # data
     def reset(self):
         self.done = False
+        self.saveVideo_action.setEnabled(False)
         self.colors = None
 
         self.x = None
@@ -314,53 +381,46 @@ class DPgui(QMainWindow):
     # draw
     def draw(self):
         if self.done:
-            # save previous view point
-            azim = self.axes.azim
-            elev = self.axes.elev
-            xlim = list(self.axes.get_xlim())
-            ylim = list(self.axes.get_ylim())
-            zlim = list(self.axes.get_zlim())
-            addlim = np.max([xlim[1] - xlim[0], ylim[1] - ylim[0], zlim[1] - zlim[0]])
-            xlim[1] = xlim[0] + addlim
-            ylim[1] = ylim[0] + addlim
-            zlim[1] = zlim[0] + addlim
-
-            # clear the axes and redraw the plot anew
-            #
-            self.axes.clear()
-            #plt.title('frame number=' + str(self.frame))
-            self.axes.set_title('frame number=' + str(self.frame))
-
-            self.axes.set_xlabel('x')
-            self.axes.set_ylabel('y')
-            self.axes.set_zlabel('z')
-            if not self.grid_cb.isChecked():
-                self.axes.grid(self.grid_cb.isChecked())
-                self.axes.tick_params(labelbottom=self.grid_cb.isChecked(), labelleft=self.grid_cb.isChecked(),
-                                      labelright=self.grid_cb.isChecked(), labeltop=self.grid_cb.isChecked(),
-                                      bottom=self.grid_cb.isChecked(), left=self.grid_cb.isChecked(),
-                                      right=self.grid_cb.isChecked(), top=self.grid_cb.isChecked())
-                self.axes.set_xlabel('')
-                self.axes.set_ylabel('')
-                self.axes.set_zlabel('')
-                #self.axes.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-                #self.axes.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-                #self.axes.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-
-            # restore previous view point
-            self.axes.set_xlim(xlim)
-            self.axes.set_ylim(ylim)
-            self.axes.set_zlim(zlim)
-            self.axes.view_init(elev=elev, azim=azim)
-
-            self.scatter = [
-                self.axes.scatter3D(self.x[self.frame, i], self.y[self.frame, i], self.z[self.frame, i], ".",
-                                    color=self.colors[self.frame, i]) for i in range(len(self.joints))]
-            for line in self.lines:
-                self.axes.plot([self.x[self.frame, line[0]], self.x[self.frame, line[1]]],
-                                [self.y[self.frame, line[0]], self.y[self.frame, line[1]]],
-                                [self.z[self.frame, line[0]], self.z[self.frame, line[1]]], "-", color='black')
+            self._update(*tuple(self.getViewRange()))
             self.canvas.draw()
+
+    def _update(self, xlim, ylim, zlim, elev, azim):
+        if not self.done:
+            return
+        # clear the axes and redraw the plot anew
+        #
+
+        self.axes.clear()
+        # plt.title('frame number=' + str(self.frame))
+        self.axes.set_title('frame number=' + str(self.frame))
+
+        self.axes.set_xlabel('x')
+        self.axes.set_ylabel('y')
+        self.axes.set_zlabel('z')
+        if not self.grid_cb.isChecked():
+            self.axes.grid(self.grid_cb.isChecked())
+            self.axes.tick_params(labelbottom=self.grid_cb.isChecked(), labelleft=self.grid_cb.isChecked(),
+                                  labelright=self.grid_cb.isChecked(), labeltop=self.grid_cb.isChecked(),
+                                  bottom=self.grid_cb.isChecked(), left=self.grid_cb.isChecked(),
+                                  right=self.grid_cb.isChecked(), top=self.grid_cb.isChecked())
+            self.axes.set_xlabel('')
+            self.axes.set_ylabel('')
+            self.axes.set_zlabel('')
+            # self.axes.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+            # self.axes.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+            # self.axes.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+
+        # restore previous view point
+        self.setViewRange(xlim, ylim, zlim, elev, azim)
+
+        self.scatter = [
+            self.axes.scatter3D(self.x[self.frame, i], self.y[self.frame, i], self.z[self.frame, i], ".",
+                                color=self.colors[self.frame, i]) for i in range(len(self.joints))]
+        for line in self.lines:
+            self.axes.plot([self.x[self.frame, line[0]], self.x[self.frame, line[1]]],
+                           [self.y[self.frame, line[0]], self.y[self.frame, line[1]]],
+                           [self.z[self.frame, line[0]], self.z[self.frame, line[1]]], "-", color='black')
+
 
     def initialDraw(self, inpData, colors):
         if type(colors).__name__ == 'list':
@@ -369,6 +429,7 @@ class DPgui(QMainWindow):
             QMessageBox.critical(self, "Caution", "Unexpected error occured:{0}".format(e.with_traceback(tb)))
             return
         self.done = True
+        self.saveVideo_action.setEnabled(True)
         self.colors = colors
 
         data = np.array(list(inpData.joints.values()))  # [joint index][time][dim]
@@ -380,7 +441,10 @@ class DPgui(QMainWindow):
         self.frame_max = self.x.shape[0]
         # clear the axes and redraw the plot anew
         #
-        self.setViewRange()
+        xlim = list((np.nanmin(self.x), np.nanmax(self.x)))
+        ylim = list((np.nanmin(self.y), np.nanmax(self.y)))
+        zlim = list((np.nanmin(self.z), np.nanmax(self.z)))
+        self.setViewRange(xlim, ylim, zlim, *tuple(self.getViewRange())[3:])
         self.slider.setValue(0)
         self.draw()
 
@@ -391,17 +455,24 @@ class DPgui(QMainWindow):
         self.groupzrange.setEnabled(True)
         self.leftdockwidget.buttonPlay.setEnabled(True)
 
-    def setViewRange(self):
+    def getViewRange(self):
         azim = self.axes.azim
         elev = self.axes.elev
-        xlim = list((np.nanmin(self.x), np.nanmax(self.x)))
-        ylim = list((np.nanmin(self.y), np.nanmax(self.y)))
-        zlim = list((np.nanmin(self.z), np.nanmax(self.z)))
+        #xlim = list((np.nanmin(self.x), np.nanmax(self.x)))
+        #ylim = list((np.nanmin(self.y), np.nanmax(self.y)))
+        #zlim = list((np.nanmin(self.z), np.nanmax(self.z)))
+        xlim = list(self.axes.get_xlim())
+        ylim = list(self.axes.get_ylim())
+        zlim = list(self.axes.get_zlim())
+
         addlim = np.max([xlim[1] - xlim[0], ylim[1] - ylim[0], zlim[1] - zlim[0]])
         xlim[1] = xlim[0] + addlim
         ylim[1] = ylim[0] + addlim
         zlim[1] = zlim[0] + addlim
 
+        return xlim, ylim, zlim, elev, azim
+
+    def setViewRange(self, xlim, ylim, zlim, elev, azim):
         self.axes.set_xlim(xlim)
         self.axes.set_ylim(ylim)
         self.axes.set_zlim(zlim)
