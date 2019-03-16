@@ -188,7 +188,8 @@ class LeftDockWidget(QWidget):
                 self.labelRealRefPath.setText(os.path.basename(self.refPath))
                 exec('self.parent.caches[\'prevDir{0}\'] = os.path.dirname(self.refPath)'.format(
                     self.comboBoxSkeltonType.currentText()))
-                self.buttonViewRefPath.setEnabled(str(self.comboBoxSkeltonType.currentText()) == 'Baseball')
+                #self.buttonViewRefPath.setEnabled(str(self.comboBoxSkeltonType.currentText()) == 'Baseball')
+                self.buttonViewRefPath.setEnabled(True)
             else:
                 self.refPath = None
                 self.labelRealRefPath.setText("No selected")
@@ -201,7 +202,8 @@ class LeftDockWidget(QWidget):
                 self.labelRealInpPath.setText(os.path.basename(self.inpPath))
                 exec('self.parent.caches[\'prevDir{0}\'] = os.path.dirname(self.inpPath)'.format(
                     self.comboBoxSkeltonType.currentText()))
-                self.buttonViewInpPath.setEnabled(str(self.comboBoxSkeltonType.currentText()) == 'Baseball')
+                #self.buttonViewInpPath.setEnabled(str(self.comboBoxSkeltonType.currentText()) == 'Baseball')
+                self.buttonViewInpPath.setEnabled(True)
             else:
                 self.inpPath = None
                 self.labelRealInpPath.setText("No selected")
@@ -215,10 +217,18 @@ class LeftDockWidget(QWidget):
     def viewClicked(self, ref):
         if ref:
             qlabel = self.labelRefRange
-            data = self.dpModule['csvReader'](os.path.basename(self.refPath), os.path.dirname(self.refPath))
+            if str(self.comboBoxSkeltonType.currentText()) == 'Baseball':
+                data = self.dpModule['csvReader'](os.path.basename(self.refPath), os.path.dirname(self.refPath))
+            else:
+                data = self.dpModule['Data']()
+                data.set_from_trc(self.refPath)
         else:
             qlabel = self.labelInpRange
-            data = self.dpModule['csvReader'](os.path.basename(self.inpPath), os.path.dirname(self.inpPath))
+            if str(self.comboBoxSkeltonType.currentText()) == 'Baseball':
+                data = self.dpModule['csvReader'](os.path.basename(self.inpPath), os.path.dirname(self.inpPath))
+            else:
+                data = self.dpModule['Data']()
+                data.set_from_trc(self.inpPath)
         self.parent.showNormalViewer(qlabel, data)
 
 

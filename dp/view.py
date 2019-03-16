@@ -76,14 +76,12 @@ class Visualization(object):
             if savepath is None:
                 raise ValueError("when you call save, you must set savepath")
             gui = gui3d(x, y, z, jointNames, fps, lines, colors)
-            gui.setViewRange()
             gui.saveVideo(savepath)
             if verbose:
                 print('saved {0}'.format(savepath))
             return
         app = QApplication(sys.argv)
         gui = gui3d(x, y, z, jointNames, fps, lines, colors)
-        gui.setViewRange()
         gui.show()
         sys.exit(app.exec_())
 
@@ -102,6 +100,7 @@ class gui3d(QMainWindow):
 
         self.create_menu()
         self.create_mainframe()
+        self.setViewRange()
         self.draw(fix=False)
 
     def draw(self, fix=False):
@@ -256,9 +255,13 @@ class gui3d(QMainWindow):
     def getViewRange(self):
         azim = self.axes.azim
         elev = self.axes.elev
-        xlim = list((np.nanmin(self.x), np.nanmax(self.x)))
-        ylim = list((np.nanmin(self.y), np.nanmax(self.y)))
-        zlim = list((np.nanmin(self.z), np.nanmax(self.z)))
+        #xlim = list((np.nanmin(self.x), np.nanmax(self.x)))
+        #ylim = list((np.nanmin(self.y), np.nanmax(self.y)))
+        #zlim = list((np.nanmin(self.z), np.nanmax(self.z)))
+        xlim = list(self.axes.get_xlim())
+        ylim = list(self.axes.get_ylim())
+        zlim = list(self.axes.get_zlim())
+
         addlim = np.max([xlim[1] - xlim[0], ylim[1] - ylim[0], zlim[1] - zlim[0]])
         xlim[1] = xlim[0] + addlim
         ylim[1] = ylim[0] + addlim
@@ -267,7 +270,11 @@ class gui3d(QMainWindow):
         return xlim, ylim, zlim, elev, azim
 
     def setViewRange(self):
-        self.setViewRange_(*tuple(self.getViewRange()))
+        xlim = list((np.nanmin(self.x), np.nanmax(self.x)))
+        ylim = list((np.nanmin(self.y), np.nanmax(self.y)))
+        zlim = list((np.nanmin(self.z), np.nanmax(self.z)))
+        self.setViewRange_(xlim, ylim, zlim, *tuple(self.getViewRange())[3:])
+        #self.setViewRange_(*tuple(self.getViewRange()))
 
     def setViewRange_(self, xlim, ylim, zlim, elev, azim):
         self.axes.set_xlim(xlim)
