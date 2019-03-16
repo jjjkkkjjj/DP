@@ -291,6 +291,7 @@ class DPgui(QMainWindow):
                         percent = int((frame + 1.0) * 100 / self.x.shape[0])
                         sself.setValue(percent, appendedText=': saving to \'{0}\' now...'.format(savepath))
                         #self.sliderSetValue(frame)
+                        self.frame = frame
                         self._update(xlim, ylim, zlim, elev, azim)
                         self.axes.figure.canvas.draw()
                         # convert canvas to image
