@@ -94,6 +94,16 @@ class LeftDockWidget(QWidget):
         self.labelInpRange = QLabel()
         vboxConfig.addWidget(self.labelInpRange)
 
+        self.labelFps = QLabel()
+        self.labelFps.setText("FPS")
+        vboxConfig.addWidget(self.labelFps)
+
+        qintValidator = QIntValidator()
+        self.lineeditFps = QLineEdit()
+        self.lineeditFps.setValidator(qintValidator)
+        self.lineeditFps.setText("240")
+        vboxConfig.addWidget(self.lineeditFps)
+
         self.buttonDone = QPushButton("Done!")
         self.buttonDone.clicked.connect(self.doneClicked)
         self.buttonDone.setEnabled(False)
@@ -106,15 +116,15 @@ class LeftDockWidget(QWidget):
         self.groupVisualization = QGroupBox("Visualization")
         vboxVisualization = QVBoxLayout()
 
-        self.labelFps = QLabel()
-        self.labelFps.setText("FPS")
-        vboxVisualization.addWidget(self.labelFps)
+        self.labelvideoFps = QLabel()
+        self.labelvideoFps.setText("Save video FPS")
+        vboxVisualization.addWidget(self.labelvideoFps)
 
         qintValidator = QIntValidator()
-        self.lineeditFps = QLineEdit()
-        self.lineeditFps.setValidator(qintValidator)
-        self.lineeditFps.setText("240")
-        vboxVisualization.addWidget(self.lineeditFps)
+        self.lineeditVideoFps = QLineEdit()
+        self.lineeditVideoFps.setValidator(qintValidator)
+        self.lineeditVideoFps.setText("240")
+        vboxVisualization.addWidget(self.lineeditVideoFps)
 
         self.labelMaximumGapTime = QLabel()
         self.labelMaximumGapTime.setText("Maximum Gap Time(s)")

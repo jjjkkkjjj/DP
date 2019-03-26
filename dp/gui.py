@@ -279,7 +279,7 @@ class DPgui(QMainWindow):
         nowFrame = self.frame
 
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        video = cv2.VideoWriter(savepath, fourcc, int(self.leftdockwidget.lineeditFps.text()), (imgw, imgh))
+        video = cv2.VideoWriter(savepath, fourcc, int(self.leftdockwidget.lineeditVideoFps.text()), (imgw, imgh))
         class SaveDP(Implement):
             def run(sself):
                 try:
@@ -354,6 +354,7 @@ class DPgui(QMainWindow):
 
         self.axes.clear()
 
+        self.sliderSetValue(0)
         self.slider.setEnabled(False)
         self.slider.setMaximum(0)
         self.groupxrange.setEnabled(False)
