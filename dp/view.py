@@ -71,16 +71,17 @@ class Visualization(object):
 
         return
 
-    def show3d(self, x, y, z, jointNames, saveonly=False, title=None, savepath=None, fps=240, lines=None, verbose=False, colors=None): # x[time, joint] ,color must be normalized -1~1
+    def show3d(self, x, y, z, jointNames, saveonly=False, title=None, savepath=None, fps=240, lines=None, verbose=False, colors=None, grid=False): # x[time, joint] ,color must be normalized -1~1
+        app = QApplication(sys.argv)
         if saveonly:
             if savepath is None:
                 raise ValueError("when you call save, you must set savepath")
             gui = gui3d(x, y, z, jointNames, fps, lines, colors)
-            gui.saveVideo(savepath)
+            gui.grid_cb.setChecked(grid)
+            gui.saveVideo(savepath, cui=True)
             if verbose:
                 print('saved {0}'.format(savepath))
             return
-        app = QApplication(sys.argv)
         gui = gui3d(x, y, z, jointNames, fps, lines, colors)
         gui.show()
         sys.exit(app.exec_())
@@ -282,7 +283,7 @@ class gui3d(QMainWindow):
         self.axes.set_zlim(zlim)
         self.axes.view_init(elev=elev, azim=azim)
 
-    def saveVideo(self, savepath):
+    def saveVideo(self, savepath, cui=False):
         imgw, imgh = 600, 400
 
         xlim, ylim, zlim, elev, azim = self.getViewRange()
@@ -291,39 +292,78 @@ class gui3d(QMainWindow):
 
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         video = cv2.VideoWriter(savepath, fourcc, self.fps, (imgw, imgh))
-        class save3d(Implement):
-            def run(sself):
-                try:
-                    for frame in range(self.x.shape[0]):
-                        if not sself.flag:
-                            video.release()
-                            sself.abort('terminated')
-                            break
-                        percent = int((frame + 1.0) * 100 / self.x.shape[0])
-                        sself.setValue(percent, appendedText=': saving to \'{0}\' now...'.format(savepath))
-                        #self.slider.setValue(frame)
-                        self.frame = frame
-                        self._update(xlim, ylim, zlim, elev, azim)
-                        self.axes.figure.canvas.draw()
-                        # convert canvas to image
-                        # self.canvas.draw()
-                        width, height = self.fig.get_size_inches() * self.fig.get_dpi()
-                        img = np.fromstring(self.fig.canvas.tostring_rgb(), dtype='uint8', sep='').reshape(int(height),
-                                                                                                           int(width),
-                                                                                                           3)
-                        # img is rgb, convert to opencv's default bgr
-                        img = cv2.resize(cv2.cvtColor(img, cv2.COLOR_RGB2BGR), (imgw, imgh))
+        if cui:
+            sys.stdout.write('\r')
+            sys.stdout.flush()
+            for frame in range(self.x.shape[0]):
+                percent = int((frame + 1.0) * 100 / self.x.shape[0])
+                sys.stdout.write(
+                    '\r|{0}| {1}% finished'.format('#' * int(percent * 0.2) + '-' * (20 - int(percent * 0.2)), percent))
+                sys.stdout.flush()
+                self.frame = frame
+                self._update(xlim, ylim, zlim, elev, azim)
+                self.axes.figure.canvas.draw()
+                """
+                img = np.fromstring(self.axes.figure.canvas.tostring_rgb(), dtype=np.uint8,
+                                    sep='')
+                print (self.axes.figure.canvas.get_width_height()[::-1])
+                print (self.axes.figure.canvas.get_width_height())
+                exit()
+                img = img.reshape(self.axes.figure.canvas.get_width_height()[::-1] + (3,))
+                """
+                width, height = self.fig.get_size_inches() * self.fig.get_dpi()
+                img = np.fromstring(self.fig.canvas.tostring_rgb(), dtype='uint8', sep='').reshape(int(height),
+                                                                                                   int(width), 3)
+                # img is rgb, convert to opencv's default bgr
+                img = cv2.resize(cv2.cvtColor(img, cv2.COLOR_RGB2BGR), (imgw, imgh))
 
-                        video.write(img)
+                video.write(img)
 
-                    video.release()
-                    sself.finish()
-                except Exception as e:
-                    tb = sys.exc_info()[2]
-                    sself.finSignal.emit([e, tb])
+                # display image with opencv or any operation you like
+                # cv2.imshow("plot", img)
+                # k = cv2.waitKey(int(100*1.0/fps))
+                # if k == ord('q'):
+                #    show = False
+                #    break
 
-        saveDP = ProgressBar(save3d(), self, closeDialogComment="Saved to \'{0}\'".format(savepath))
-        saveDP.run()
+            video.release()
+            sys.stdout.write('\rsaved to {0}\n'.format(savepath))
+            sys.stdout.flush()
+        else:
+            class save3d(Implement):
+                def run(sself):
+                    try:
+                        for frame in range(self.x.shape[0]):
+                            if not sself.flag:
+                                video.release()
+                                sself.abort('terminated')
+                                break
+                            percent = int((frame + 1.0) * 100 / self.x.shape[0])
+                            sself.setValue(percent, appendedText=': saving to \'{0}\' now...'.format(savepath))
+                            # self.slider.setValue(frame)
+                            self.frame = frame
+                            self._update(xlim, ylim, zlim, elev, azim)
+                            self.axes.figure.canvas.draw()
+                            # convert canvas to image
+                            # self.canvas.draw()
+                            width, height = self.fig.get_size_inches() * self.fig.get_dpi()
+                            img = np.fromstring(self.fig.canvas.tostring_rgb(), dtype='uint8', sep='').reshape(
+                                int(height),
+                                int(width),
+                                3)
+                            # img is rgb, convert to opencv's default bgr
+                            img = cv2.resize(cv2.cvtColor(img, cv2.COLOR_RGB2BGR), (imgw, imgh))
+
+                            video.write(img)
+
+                        video.release()
+                        sself.finish()
+                    except Exception as e:
+                        tb = sys.exc_info()[2]
+                        sself.finSignal.emit([e, tb])
+
+            saveDP = ProgressBar(save3d(), self, closeDialogComment="Saved to \'{0}\'".format(savepath))
+            saveDP.run()
         self.slider.setValue(nowFrame)
 
     def _update(self, xlim, ylim, zlim, elev, azim):
